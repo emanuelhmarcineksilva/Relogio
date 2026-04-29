@@ -1,0 +1,8 @@
+cronometrar o tempo das funções - microsecs
+
+tempo = t1 - t2 => tempo da função para rodar (t1 começo da função - antes dela -  e t2 fim dela armazenando o tempo em que começou
+o tempo que acabou subitraindo)
+
+dai vai calculando o tempo em cada ciclo e vai criando um grafico na web
+
+função x  - esta sendo executada em (tempo) - fase 2 mostrar o grafico, de quando esta rapida e lenta,
