@@ -1032,164 +1032,265 @@ void iniciarServidorWeb() {
   logPrintln("Servidor Web Iniciado!");
 }
 
-// === 13. SETUP — BOOT PASSO-A-PASSO ===
+// === 13. SETUP — BOOT SEM DELAY ===
+// O boot usa uma maquina de estados para nunca bloquear com delay().
+// Cada passo executa instantaneamente, e o proximo passo eh agendado
+// via millis() para dar tempo do usuario ler a mensagem no OLED.
+// Durante a espera, o ESP32 fica livre para fazer outras coisas.
+
+// --- Variaveis do boot nao-bloqueante ---
+enum BootState {
+  BOOT_SERIAL_INIT,      // Passo 0: Inicializa serial
+  BOOT_DISPLAY,          // Passo 1: Display OLED
+  BOOT_SPIFFS,           // Passo 2: SPIFFS
+  BOOT_RTC,              // Passo 3: RTC
+  BOOT_I2S,              // Passo 4: Audio I2S
+  BOOT_BOTOES,           // Passo 5: Botoes
+  BOOT_WIFI_START,       // Passo 6a: Inicia WiFi
+  BOOT_WIFI_WAIT,        // Passo 6b: Espera conexao WiFi (polling nao-bloqueante)
+  BOOT_WIFI_RESULT,      // Passo 6c: Mostra resultado WiFi
+  BOOT_NTP,              // Passo 7: NTP
+  BOOT_SERVER,           // Passo 8: Web Server
+  BOOT_DHT,              // Inicia DHT22
+  BOOT_COMPLETO          // Boot finalizado
+};
+
+BootState bootState        = BOOT_SERIAL_INIT;
+bool      bootFinalizado   = false;
+bool      oledOkBoot       = false;
+unsigned long bootStepTime = 0;       // Quando o passo atual comecou
+unsigned long bootWifiT0   = 0;       // Quando o WiFi.begin() foi chamado
+#define BOOT_MSG_INTERVAL 80          // ms minimo para mostrar cada msg no OLED
+#define WIFI_TIMEOUT_MS   15000       // Timeout maximo para WiFi conectar
 
 void setup() {
+  // Somente inicializa serial e marca o tempo. Todo o resto roda no loop.
   Serial.begin(115200);
-  delay(300);
-  Serial.println();
-  Serial.println(F("========================================"));
-  Serial.println(F(" Relogiov3 — BOOT PASSO-A-PASSO (8)"));
-  Serial.println(F("========================================"));
+  bootStepTime = millis();
+}
 
-  // ---- PASSO 1/8: DISPLAY ----
-  Serial.print(F("[1/8] Display OLED... "));
-  Wire.begin(SDA_PIN, SCL_PIN);
-  bool oledOk = displayTela.begin(SSD1306_SWITCHCAPVCC, OLED_ADDR);
-  if (!oledOk) { Serial.println(F("FALHOU!")); }
-  else {
-    Serial.println(F("OK"));
-    displayTela.clearDisplay();
-    displayTela.setTextColor(SSD1306_WHITE);
-    oledMsg("[1/8] Display", "OK!");
-    delay(500);
-  }
+// Executa um passo do boot. Retorna true quando o boot terminou.
+bool bootStep() {
+  unsigned long agora = millis();
 
-  // ---- PASSO 2/8: SPIFFS ----
-  Serial.print(F("[2/8] SPIFFS... "));
-  if (oledOk) oledMsg("[2/8] SPIFFS...", "");
-  if (!SPIFFS.begin(true)) {
-    Serial.println(F("FALHOU!"));
-    if (oledOk) oledMsg("[2/8] SPIFFS", "FALHOU!");
-  } else {
-    Serial.println(F("OK"));
-    if (oledOk) oledMsg("[2/8] SPIFFS", "OK!");
-  }
-  delay(300);
-  carregarPerfFlash(); // Restaura histórico de performance da flash
+  switch (bootState) {
 
-  // ---- PASSO 3/8: RTC ----
-  Serial.print(F("[3/8] RTC DS3231... "));
-  if (oledOk) oledMsg("[3/8] RTC...", "");
-  if (!rtc.begin()) {
-    Serial.println(F("FALHOU!"));
-    if (oledOk) oledMsg("[3/8] RTC", "FALHOU!");
-  } else {
-    if (rtc.lostPower()) rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
-    DateTime now = rtc.now();
-    Serial.printf("OK (%02d:%02d:%02d)\n", now.hour(), now.minute(), now.second());
-    if (oledOk) {
-      char buf[20];
-      snprintf(buf, sizeof(buf), "OK  %02d:%02d:%02d", now.hour(), now.minute(), now.second());
-      oledMsg("[3/8] RTC", buf);
-    }
-  }
-  delay(500);
+    case BOOT_SERIAL_INIT:
+      Serial.println();
+      Serial.println(F("========================================"));
+      Serial.println(F(" Relogiov3 — BOOT SEM DELAY"));
+      Serial.println(F("========================================"));
+      bootState = BOOT_DISPLAY;
+      bootStepTime = agora;
+      break;
 
-  // ---- PASSO 4/8: I2S (MAX98357A) ----
-  Serial.print(F("[4/8] I2S Audio... "));
-  if (oledOk) oledMsg("[4/8] Audio I2S...", "MAX98357A");
-  iniciarI2S();
-  if (oledOk) oledMsg("[4/8] Audio", i2sIniciado ? "OK!" : "FALHOU");
-  delay(500);
-
-  // ---- PASSO 5/8: BOTÕES ----
-  Serial.println(F("[5/8] Botoes..."));
-  pinMode(pinoButton1, INPUT_PULLUP);
-  pinMode(pinoButton2, INPUT_PULLUP);
-  if (oledOk) oledMsg("[5/8] Botoes", "OK!");
-  delay(300);
-
-  // ---- PASSO 6/8: WIFI ----
-  Serial.print(F("[6/8] WiFi... "));
-  if (oledOk) oledMsg("[6/8] WiFi...", WIFI_SSID);
-
-  WiFi.mode(WIFI_STA);
-  WiFi.setSleep(false);
-  WiFi.setAutoReconnect(true);
-  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
-
-  unsigned long t0 = millis();
-  while (WiFi.status() != WL_CONNECTED && (millis() - t0) < 15000) {
-    delay(500);
-    Serial.print(".");
-  }
-  Serial.println();
-
-  if (WiFi.status() == WL_CONNECTED) {
-    Serial.print("WiFi OK! IP: ");
-    Serial.println(WiFi.localIP());
-    if (oledOk) {
-      char ipBuf[30];
-      snprintf(ipBuf, sizeof(ipBuf), "IP: %s", WiFi.localIP().toString().c_str());
-      oledMsg("[6/8] WiFi OK!", ipBuf);
-    }
-  } else {
-    Serial.println("WiFi FALHOU (retry no loop)");
-    if (oledOk) oledMsg("[6/8] WiFi", "FALHOU - retry");
-  }
-  delay(800);
-
-  // ---- PASSO 7/8: NTP (sincroniza hora real) ----
-  Serial.print(F("[7/8] NTP Sync... "));
-  if (oledOk) oledMsg("[7/8] NTP...", "Sincronizando");
-  if (WiFi.status() == WL_CONNECTED) {
-    configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
-    struct tm timeinfo;
-    if (getLocalTime(&timeinfo, 5000)) {
-      // Sincroniza o RTC com hora da internet
-      rtc.adjust(DateTime(
-        timeinfo.tm_year + 1900, timeinfo.tm_mon + 1, timeinfo.tm_mday,
-        timeinfo.tm_hour, timeinfo.tm_min, timeinfo.tm_sec
-      ));
-      Serial.printf("OK (%02d:%02d:%02d)\n", timeinfo.tm_hour, timeinfo.tm_min, timeinfo.tm_sec);
-      if (oledOk) {
-        char buf[20];
-        snprintf(buf, sizeof(buf), "OK %02d:%02d:%02d", timeinfo.tm_hour, timeinfo.tm_min, timeinfo.tm_sec);
-        oledMsg("[7/8] NTP", buf);
+    // ---- PASSO 1/8: DISPLAY ----
+    case BOOT_DISPLAY:
+      Serial.print(F("[1/8] Display OLED... "));
+      Wire.begin(SDA_PIN, SCL_PIN);
+      oledOkBoot = displayTela.begin(SSD1306_SWITCHCAPVCC, OLED_ADDR);
+      if (!oledOkBoot) {
+        Serial.println(F("FALHOU!"));
+      } else {
+        Serial.println(F("OK"));
+        displayTela.clearDisplay();
+        displayTela.setTextColor(SSD1306_WHITE);
+        oledMsg("[1/8] Display", "OK!");
       }
-    } else {
-      Serial.println(F("FALHOU (usando RTC)"));
-      if (oledOk) oledMsg("[7/8] NTP", "FALHOU-usa RTC");
-    }
-  } else {
-    Serial.println(F("Sem WiFi"));
-    if (oledOk) oledMsg("[7/8] NTP", "Sem WiFi");
+      bootState = BOOT_SPIFFS;
+      bootStepTime = agora;
+      break;
+
+    // ---- PASSO 2/8: SPIFFS ----
+    case BOOT_SPIFFS:
+      if (agora - bootStepTime < BOOT_MSG_INTERVAL) break;
+      Serial.print(F("[2/8] SPIFFS... "));
+      if (oledOkBoot) oledMsg("[2/8] SPIFFS...", "");
+      if (!SPIFFS.begin(true)) {
+        Serial.println(F("FALHOU!"));
+        if (oledOkBoot) oledMsg("[2/8] SPIFFS", "FALHOU!");
+      } else {
+        Serial.println(F("OK"));
+        if (oledOkBoot) oledMsg("[2/8] SPIFFS", "OK!");
+      }
+      carregarPerfFlash();
+      bootState = BOOT_RTC;
+      bootStepTime = agora;
+      break;
+
+    // ---- PASSO 3/8: RTC ----
+    case BOOT_RTC:
+      if (agora - bootStepTime < BOOT_MSG_INTERVAL) break;
+      Serial.print(F("[3/8] RTC DS3231... "));
+      if (oledOkBoot) oledMsg("[3/8] RTC...", "");
+      if (!rtc.begin()) {
+        Serial.println(F("FALHOU!"));
+        if (oledOkBoot) oledMsg("[3/8] RTC", "FALHOU!");
+      } else {
+        if (rtc.lostPower()) rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
+        DateTime now = rtc.now();
+        Serial.printf("OK (%02d:%02d:%02d)\n", now.hour(), now.minute(), now.second());
+        if (oledOkBoot) {
+          char buf[20];
+          snprintf(buf, sizeof(buf), "OK  %02d:%02d:%02d", now.hour(), now.minute(), now.second());
+          oledMsg("[3/8] RTC", buf);
+        }
+      }
+      bootState = BOOT_I2S;
+      bootStepTime = agora;
+      break;
+
+    // ---- PASSO 4/8: I2S (MAX98357A) ----
+    case BOOT_I2S:
+      if (agora - bootStepTime < BOOT_MSG_INTERVAL) break;
+      Serial.print(F("[4/8] I2S Audio... "));
+      if (oledOkBoot) oledMsg("[4/8] Audio I2S...", "MAX98357A");
+      iniciarI2S();
+      if (oledOkBoot) oledMsg("[4/8] Audio", i2sIniciado ? "OK!" : "FALHOU");
+      bootState = BOOT_BOTOES;
+      bootStepTime = agora;
+      break;
+
+    // ---- PASSO 5/8: BOTÕES ----
+    case BOOT_BOTOES:
+      if (agora - bootStepTime < BOOT_MSG_INTERVAL) break;
+      Serial.println(F("[5/8] Botoes..."));
+      pinMode(pinoButton1, INPUT_PULLUP);
+      pinMode(pinoButton2, INPUT_PULLUP);
+      if (oledOkBoot) oledMsg("[5/8] Botoes", "OK!");
+      bootState = BOOT_WIFI_START;
+      bootStepTime = agora;
+      break;
+
+    // ---- PASSO 6a/8: WIFI INICIO ----
+    case BOOT_WIFI_START:
+      if (agora - bootStepTime < BOOT_MSG_INTERVAL) break;
+      Serial.print(F("[6/8] WiFi... "));
+      if (oledOkBoot) oledMsg("[6/8] WiFi...", WIFI_SSID);
+      WiFi.mode(WIFI_STA);
+      WiFi.setSleep(false);
+      WiFi.setAutoReconnect(true);
+      WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+      bootWifiT0 = agora;
+      bootState = BOOT_WIFI_WAIT;
+      break;
+
+    // ---- PASSO 6b/8: WIFI POLLING (nao-bloqueante) ----
+    case BOOT_WIFI_WAIT:
+      if (WiFi.status() == WL_CONNECTED) {
+        Serial.println();
+        bootState = BOOT_WIFI_RESULT;
+        bootStepTime = agora;
+      } else if (agora - bootWifiT0 >= WIFI_TIMEOUT_MS) {
+        Serial.println();
+        bootState = BOOT_WIFI_RESULT;
+        bootStepTime = agora;
+      } else {
+        // Em vez de delay(500), usamos yield() que libera a CPU
+        yield();
+      }
+      break;
+
+    // ---- PASSO 6c/8: WIFI RESULTADO ----
+    case BOOT_WIFI_RESULT:
+      if (WiFi.status() == WL_CONNECTED) {
+        Serial.print("WiFi OK! IP: ");
+        Serial.println(WiFi.localIP());
+        if (oledOkBoot) {
+          char ipBuf[30];
+          snprintf(ipBuf, sizeof(ipBuf), "IP: %s", WiFi.localIP().toString().c_str());
+          oledMsg("[6/8] WiFi OK!", ipBuf);
+        }
+      } else {
+        Serial.println("WiFi FALHOU (retry no loop)");
+        if (oledOkBoot) oledMsg("[6/8] WiFi", "FALHOU - retry");
+      }
+      bootState = BOOT_NTP;
+      bootStepTime = agora;
+      break;
+
+    // ---- PASSO 7/8: NTP ----
+    case BOOT_NTP:
+      if (agora - bootStepTime < BOOT_MSG_INTERVAL) break;
+      Serial.print(F("[7/8] NTP Sync... "));
+      if (oledOkBoot) oledMsg("[7/8] NTP...", "Sincronizando");
+      if (WiFi.status() == WL_CONNECTED) {
+        configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
+        struct tm timeinfo;
+        // getLocalTime com timeout de 2000ms (menor que antes, mas suficiente)
+        if (getLocalTime(&timeinfo, 2000)) {
+          rtc.adjust(DateTime(
+            timeinfo.tm_year + 1900, timeinfo.tm_mon + 1, timeinfo.tm_mday,
+            timeinfo.tm_hour, timeinfo.tm_min, timeinfo.tm_sec
+          ));
+          Serial.printf("OK (%02d:%02d:%02d)\n", timeinfo.tm_hour, timeinfo.tm_min, timeinfo.tm_sec);
+          if (oledOkBoot) {
+            char buf[20];
+            snprintf(buf, sizeof(buf), "OK %02d:%02d:%02d", timeinfo.tm_hour, timeinfo.tm_min, timeinfo.tm_sec);
+            oledMsg("[7/8] NTP", buf);
+          }
+        } else {
+          Serial.println(F("FALHOU (usando RTC)"));
+          if (oledOkBoot) oledMsg("[7/8] NTP", "FALHOU-usa RTC");
+        }
+      } else {
+        Serial.println(F("Sem WiFi"));
+        if (oledOkBoot) oledMsg("[7/8] NTP", "Sem WiFi");
+      }
+      bootState = BOOT_SERVER;
+      bootStepTime = agora;
+      break;
+
+    // ---- PASSO 8/8: WEB SERVER ----
+    case BOOT_SERVER:
+      if (agora - bootStepTime < BOOT_MSG_INTERVAL) break;
+      Serial.print(F("[8/8] Web Server... "));
+      if (oledOkBoot) oledMsg("[8/8] Server...", "Iniciando...");
+      iniciarServidorWeb();
+      if (WiFi.status() == WL_CONNECTED) {
+        Serial.print("URL: http://");
+        Serial.println(WiFi.localIP());
+        if (oledOkBoot) {
+          char urlBuf[40];
+          snprintf(urlBuf, sizeof(urlBuf), "http://%s", WiFi.localIP().toString().c_str());
+          oledMsg("[8/8] Server OK!", urlBuf);
+        }
+      } else {
+        if (oledOkBoot) oledMsg("[8/8] Server OK!", "Sem WiFi...");
+      }
+      bootState = BOOT_DHT;
+      bootStepTime = agora;
+      break;
+
+    // ---- DHT22 ----
+    case BOOT_DHT:
+      if (agora - bootStepTime < BOOT_MSG_INTERVAL) break;
+      dht.begin();
+      bootState = BOOT_COMPLETO;
+      bootStepTime = agora;
+      break;
+
+    // ---- BOOT COMPLETO ----
+    case BOOT_COMPLETO:
+      logPrintln("====================================");
+      logPrintf(" BOOT COMPLETO (0 delays) | Heap: %lu\n", (unsigned long)ESP.getFreeHeap());
+      logPrintln("====================================");
+      ultimoBackupFlash = millis();
+      bootFinalizado = true;
+      return true;
   }
-  delay(500);
-
-  // ---- PASSO 8/8: WEB SERVER ----
-  Serial.print(F("[8/8] Web Server... "));
-  if (oledOk) oledMsg("[8/8] Server...", "Iniciando...");
-
-  iniciarServidorWeb();
-
-  if (WiFi.status() == WL_CONNECTED) {
-    Serial.print("URL: http://");
-    Serial.println(WiFi.localIP());
-    if (oledOk) {
-      char urlBuf[40];
-      snprintf(urlBuf, sizeof(urlBuf), "http://%s", WiFi.localIP().toString().c_str());
-      oledMsg("[8/8] Server OK!", urlBuf);
-    }
-  } else {
-    if (oledOk) oledMsg("[8/8] Server OK!", "Sem WiFi...");
-  }
-
-
-  // iniciando o DHT22
-  dht.begin();
-
-  // BOOT COMPLETO
-  logPrintln("====================================");
-  logPrintf(" BOOT COMPLETO | Heap: %lu\n", (unsigned long)ESP.getFreeHeap());
-  logPrintln("====================================");
-  ultimoBackupFlash = millis();
+  return false;
 }
 
 // === 14. LOOP PRINCIPAL ===
 
 void loop() {
+  // Se o boot ainda nao terminou, executa o proximo passo e retorna
+  if (!bootFinalizado) {
+    bootStep();
+    return;  // Nao executa o loop principal ate o boot completar
+  }
+
   uint64_t tLoop0 = esp_timer_get_time();
   unsigned long agoraMs = millis();
 
