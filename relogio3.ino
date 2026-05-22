@@ -45,6 +45,7 @@
 #include <math.h>              // Funcoes matematicas (seno para gerar som)
 #include <SPIFFS.h>            // Salva arquivos na memoria flash do ESP32
 #include "time.h"              // Sincroniza hora com servidores NTP (internet)
+#include <DHT.h>               // Biblioteca da temperatura (DHT22)
 
 // ============================================================================
 // PARTE 2: CONFIGURACOES DO HARDWARE
@@ -76,14 +77,24 @@ WebServer server(80);  // Servidor web na porta 80 (porta padrao HTTP)
 // PARTE 3: CREDENCIAIS E CONFIGURACOES
 // ============================================================================
 // !! ALTERE AQUI: coloque o nome e senha da sua rede WiFi !!
-const char* WIFI_SSID     = "Galaxy S9ae76"; // Nome da rede WiFi
-const char* WIFI_PASSWORD = "vgkb2019";      // Senha da rede WiFi
+const char* WIFI_SSID     = "Marcos"; //"Galaxy S9ae76"; // Nome da rede WiFi
+const char* WIFI_PASSWORD = "henrique"; //"vgkb2019";      // Senha da rede WiFi
 
 // Chave da API de clima - crie conta gratuita em: openweathermap.org
 String apiClima = "76b19c5ce07af87452662d52bd95ce4f";
 String cidade   = "Curitiba";  // Cidade para buscar temperatura
 
 float temperatura = 0.0;  // Temperatura atual em graus Celsius
+float dhtTemperature = NAN;  // Temperatura medida pelo DHT22
+float dhtHumidity    = NAN;  // Umidade medida pelo DHT22
+unsigned long ultimoDhtLeitura = 0;       // Tempo da última leitura DHT
+const unsigned long DHT_INTERVAL_MS = 5000; // Leitura a cada 5 segundos
+
+// Configurações do Sensor do DHT22
+#define DHTPIN 23          // Pino de dados do DHT22 (GPIO 23)
+#define DHTTYPE DHT22     // Tipo de sensor: DHT22 (AM2302)
+
+DHT dht(DHTPIN, DHTTYPE);
 
 // ============================================================================
 // PARTE 4: NOTAS MUSICAIS
@@ -366,6 +377,7 @@ int32_t wifiRSSI    = 0;      // Intensidade do sinal WiFi em dBm
 // Suficiente para guardar tempo em microsegundos por anos.
 uint32_t tempoLoopUs            = 0;  // Tempo total do loop()
 uint32_t tempoPegarClimaUs      = 0;  // Tempo do pegarClima()
+uint32_t tempoPegarDHTUS        = 0;  // Tempo do pegarClima()
 uint32_t tempoRtcNowUs          = 0;  // Tempo do rtc.now()
 uint32_t tempoLeituraBotoesUs   = 0;  // Tempo de leitura dos botoes
 uint32_t tempoLogicaAlarmeUs    = 0;  // Tempo da logica de alarmes
@@ -449,7 +461,8 @@ button:hover{background:#2563eb}
 
 <h2>Clima</h2>
 <div class="card"><div class="row">
-<span id="tmpC" class="lbl">--</span>
+<span id="tmpC" class="lbl">API: --</span>
+<span id="humC" class="lbl">DHT: --</span>
 <button onclick="doClima()">Atualizar Clima</button>
 </div></div>
 
@@ -458,7 +471,7 @@ button:hover{background:#2563eb}
 <div class="tab active" onclick="stab(0)">Status</div>
 <div class="tab" onclick="stab(1)">Serial</div>
 <div class="tab" onclick="stab(2)">Flash</div>
-<div class="tab" onclick="stab(3)">&#9096; Graficos</div>
+<div class="tab" onclick="stab(3)">Graficos</div>
 </div>
 <div class="tpanel active" id="tp0">carregando...</div>
 <div class="tpanel" id="tp1">carregando serial...</div>
@@ -482,7 +495,7 @@ button:hover{background:#2563eb}
 
 <script>
 const M=['Aurora','Sino','Despertar','Fur Elise','Estrela'];
-const PN=['Loop','Clima','RTC','Botoes','Alarme','Display'];
+const PN=['Loop','Clima API','RTC','Botoes','DHT','Display'];
 const PC=['#4ade80','#38bdf8','#f97316','#a78bfa','#facc15','#f472b6'];
 function stab(n){
   document.querySelectorAll('.tab').forEach((t,i)=>{t.classList.toggle('active',i==n)});
@@ -491,7 +504,7 @@ function stab(n){
   if(n==3)gPerf();
 }
 function fixCanvas(c){c.width=c.parentElement.clientWidth-8||260;c.height=90;}
-function drawChart(id,data,color,name,cur){
+function drawChart(id,data,color,name,cur,label='us'){
   const c=document.getElementById(id);if(!c)return;
   fixCanvas(c);
   const ctx=c.getContext('2d'),w=c.width,h=c.height;
@@ -499,7 +512,7 @@ function drawChart(id,data,color,name,cur){
   ctx.strokeStyle='#1e2038';ctx.lineWidth=1;
   for(let i=0;i<4;i++){const y=10+(h-20)*i/3;ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(w,y);ctx.stroke();}
   if(!data||data.length<2){
-    ctx.fillStyle=color;ctx.font='bold 10px monospace';ctx.fillText(name+': '+cur+'us',4,14);return;
+    ctx.fillStyle=color;ctx.font='bold 10px monospace';ctx.fillText(name+': '+cur+label,4,14);return;
   }
   const mx=Math.max(...data,1);
   const mn=Math.min(...data,0);
@@ -519,8 +532,8 @@ function drawChart(id,data,color,name,cur){
   ctx.beginPath();
   data.forEach((v,i)=>{i==0?ctx.moveTo(px(i),py(v)):ctx.lineTo(px(i),py(v));});
   ctx.stroke();ctx.shadowBlur=0;
-  ctx.fillStyle=color;ctx.font='bold 10px monospace';ctx.fillText(name+': '+cur+'us',4,14);
-  ctx.fillStyle='#475569';ctx.font='9px monospace';ctx.fillText('max:'+mx+' min:'+mn+'us',4,26);
+  ctx.fillStyle=color;ctx.font='bold 10px monospace';ctx.fillText(name+': '+cur+label,4,14);
+  ctx.fillStyle='#475569';ctx.font='9px monospace';ctx.fillText('max:'+mx+label+' min:'+mn+label,4,26);
 }
 async function gPerf(){
   try{
@@ -528,7 +541,9 @@ async function gPerf(){
     for(let f=0;f<6;f++){
       const raw=d.hist[f],pos=d.pos,full=d.full;
       const ord=full?[...raw.slice(pos),...raw.slice(0,pos)]:raw.slice(0,pos);
-      drawChart('pc'+f,ord,PC[f],PN[f],d.atual[f]);
+      const label = f === 4 ? '°C' : 'us';
+      const current = f === 4 ? (d.atual[f] / 10).toFixed(1) : d.atual[f];
+      drawChart('pc'+f,ord,PC[f],PN[f],current,label);
     }
   }catch(e){}
 }
@@ -581,8 +596,9 @@ function rA(d){
     h+='</div></div>';
   }
   document.getElementById('als').innerHTML=h;
-  document.getElementById('tmp').textContent='Temp: '+d.temp.toFixed(1)+'\u00B0C';
-  document.getElementById('tmpC').textContent='Temp: '+d.temp.toFixed(1)+'\u00B0C - '+d.cidade;
+  document.getElementById('tmp').textContent='Temp API: '+d.temp.toFixed(1)+'\u00B0C';
+  document.getElementById('tmpC').textContent='Temp DHT: '+(d.dhtTemp > -100 ? d.dhtTemp.toFixed(1)+'\u00B0C' : '--');
+  document.getElementById('humC').textContent='Hum DHT: '+(d.dhtHum > -100 ? d.dhtHum.toFixed(1)+'%' : '--');
 }
 async function gS(){try{const r=await fetch('/api/log');document.getElementById('tp0').textContent=await r.text()}catch(e){}}
 async function gSer(){try{const r=await fetch('/api/serial');const el=document.getElementById('tp1');el.textContent=await r.text();el.scrollTop=el.scrollHeight}catch(e){}}
@@ -599,7 +615,9 @@ async function gA(){
     if(!editando)rA(d);
     document.getElementById('clk').textContent=d.hora;
     document.getElementById('upt').textContent='Up: '+d.uptime+'s';
-    document.getElementById('tmp').textContent='Temp: '+d.temp.toFixed(1)+'\u00B0C';
+    document.getElementById('tmp').textContent='Temp API: '+d.temp.toFixed(1)+'\u00B0C';
+    document.getElementById('tmpC').textContent='Temp DHT: '+(d.dhtTemp > -100 ? d.dhtTemp.toFixed(1)+'\u00B0C' : '--');
+    document.getElementById('humC').textContent='Hum DHT: '+(d.dhtHum > -100 ? d.dhtHum.toFixed(1)+'%' : '--');
   }catch(e){}
 }
 async function setH(){const h=document.getElementById('sh').value,m=document.getElementById('sm').value;await fetch('/api/hora?h='+h+'&m='+m);gS()}
@@ -788,7 +806,8 @@ void handleLog() {
     "WiFi: %s (RSSI %d)\n"
     "IP: %s\n\n"
     "--- CLIMA ---\n"
-    "Temp: %.1f C (%s)\n\n"
+    "Temp API: %.1f C (%s)\n"
+    "Temp DHT: %.1f C (%s)\n\n"
     "--- PERFORMANCE ---\n"
     "Loop: %lu us\n"
     "CPU: %.1f%%\n"
@@ -802,7 +821,7 @@ void handleLog() {
     alarmeDisparo ? (String(alarmeDisparoIdx + 1) + ")").c_str() : "",
     wOk ? "OK" : "OFF", wOk ? WiFi.RSSI() : 0,
     wOk ? WiFi.localIP().toString().c_str() : "...",
-    temperatura, cidade.c_str(),
+    temperatura, temperaturaDHT22, cidade.c_str(),
     (unsigned long)tempoLoopUs, // unsigned long é para não perder o valor
     cpuUsoEstimado,
     (unsigned long)ESP.getFreeHeap(),
@@ -817,8 +836,10 @@ void handleAlarmes() {
   DateTime agora = rtc.now();
   char horaStr[12];
   snprintf(horaStr, sizeof(horaStr), "%02d:%02d:%02d", agora.hour(), agora.minute(), agora.second());
-  char json[500];
+  char json[600];
   char* p = json;
+  float dhtTemp = isnan(dhtTemperature) ? -127.0f : dhtTemperature;
+  float dhtHum  = isnan(dhtHumidity) ? -127.0f : dhtHumidity;
   p += sprintf(p, "{\"alarmes\":[");
   for (int i = 0; i < NUM_ALARMES; i++) {
     if (i > 0) p += sprintf(p, ",");
@@ -827,8 +848,12 @@ void handleAlarmes() {
       alarmes[i].ativo ? "true" : "false",
       alarmes[i].melodia);
   }
-  p += sprintf(p, "],\"temp\":%.1f,\"hora\":\"%s\",\"uptime\":%lu,\"cidade\":\"%s\"}",
-    temperatura, horaStr, (unsigned long)(millis()/1000UL), cidade.c_str());
+  p += sprintf(p, "],\"temp\":%.1f,\"hum\":%.1f,\"dhtTemp\":%.1f,\"dhtHum\":%.1f,\"hora\":\"%s\",\"uptime\":%lu,\"cidade\":\"%s\"}",
+    temperatura,
+    dhtHum,
+    dhtTemp,
+    dhtHum,
+    horaStr, (unsigned long)(millis()/1000UL), cidade.c_str());
   server.send(200, "application/json", json);
 }
 
@@ -905,7 +930,8 @@ void handlePerf() {
   json += tempoPegarClimaUs;    json += ',';
   json += tempoRtcNowUs;        json += ',';
   json += tempoLeituraBotoesUs; json += ',';
-  json += tempoLogicaAlarmeUs;  json += ',';
+  json += (uint32_t)(isnan(dhtTemperature) ? 0 : dhtTemperature * 10.0f);  // DHT temperature x10
+  json += ',';
   json += tempoAtualizarDisplayUs;
   json += "],\"hist\":[";
   for (int f = 0; f < 6; f++) {
@@ -934,7 +960,7 @@ void handleSalvar() {
 
 // GET /api/download_perf — retorna histórico de performance como texto CSV
 void handleDownloadPerf() {
-  const char* nomes[] = {"Loop","Clima","RTC","Botoes","Alarme","Display"};
+  const char* nomes[] = {"Loop","Clima","RTC","Botoes","Alarme","DHT Temp"};
   String txt = "# Historico de Performance - ESP32 Relogio\n";
   txt += "# Uma amostra a cada 5 segundos\n";
   txt += "# Formato: Funcao:val1,val2,...\n";
@@ -961,7 +987,7 @@ void handleUploadPerf() {
     return;
   }
   String corpo = server.arg("plain");
-  const char* nomes[] = {"Loop","Clima","RTC","Botoes","Alarme","Display"};
+  const char* nomes[] = {"Loop","Clima","RTC","Botoes","Alarme","DHT Temp"};
   for (int f = 0; f < 6; f++) {
     String prefixo = String(nomes[f]) + ":";
     int inicio = corpo.indexOf(prefixo);
@@ -1149,7 +1175,10 @@ void setup() {
   } else {
     if (oledOk) oledMsg("[8/8] Server OK!", "Sem WiFi...");
   }
-  delay(1000);
+
+
+  // iniciando o DHT22
+  dht.begin();
 
   // BOOT COMPLETO
   logPrintln("====================================");
@@ -1163,6 +1192,25 @@ void setup() {
 void loop() {
   uint64_t tLoop0 = esp_timer_get_time();
   unsigned long agoraMs = millis();
+
+  // Leitura do DHT22 a cada 5 segundos para evitar falhas repetidas.
+  if (millis() - ultimoDhtLeitura >= DHT_INTERVAL_MS) {
+    ultimoDhtLeitura = millis();
+    float h = dht.readHumidity();
+    float t = dht.readTemperature();
+    if (isnan(h) || isnan(t)) {
+      logPrintf("[DHT] Falha ao ler sensor DHT22 no GPIO %d\n", DHTPIN);
+    } else {
+      dhtHumidity = h;
+      dhtTemperature = t;
+      Serial.print("DHT22 Umidade: ");
+      Serial.print(h);
+      Serial.print(" % \t");
+      Serial.print("Temperatura: ");
+      Serial.print(t);
+      Serial.println(" C");
+    }
+  }
 
   // ==================================================================
   // 14.0 SERVIDOR WEB
@@ -1570,7 +1618,7 @@ void loop() {
     perfHist[1][perfHistPos] = tempoPegarClimaUs;
     perfHist[2][perfHistPos] = tempoRtcNowUs;
     perfHist[3][perfHistPos] = tempoLeituraBotoesUs;
-    perfHist[4][perfHistPos] = tempoLogicaAlarmeUs;
+    perfHist[4][perfHistPos] = (uint32_t)(isnan(dhtTemperature) ? 0 : dhtTemperature * 10.0f);
     perfHist[5][perfHistPos] = tempoAtualizarDisplayUs;
     perfHistPos = (perfHistPos + 1) % PERF_HIST_SIZE;
     if (perfHistPos == 0) perfHistFull = true;
