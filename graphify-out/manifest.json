@@ -1,0 +1,187 @@
+{
+  ".claude/settings.json": {
+    "mtime": 1781209098.4171033,
+    "ast_hash": "e1073342e958ac9f00716938c8f165e3",
+    "semantic_hash": ""
+  },
+  ".vscode/settings.json": {
+    "mtime": 1780182904.7856746,
+    "ast_hash": "a6f3f0da553619f0fbd6eea5c75d1a23",
+    "semantic_hash": ""
+  },
+  ".claude/CLAUDE.md": {
+    "mtime": 1781208891.7689638,
+    "ast_hash": "db73b0edd7ffbc61ceac177130730865",
+    "semantic_hash": ""
+  },
+  ".claude/skills/graphify/SKILL.md": {
+    "mtime": 1781209098.4151034,
+    "ast_hash": "41f700d6535cc2f2b6b6d0a9eecc7525",
+    "semantic_hash": ""
+  },
+  ".claude/skills/graphify/references/add-watch.md": {
+    "mtime": 1781208524.1594908,
+    "ast_hash": "0df0589623217ca38a12bdcabfb42f4c",
+    "semantic_hash": ""
+  },
+  ".claude/skills/graphify/references/exports.md": {
+    "mtime": 1781208524.1596618,
+    "ast_hash": "7fb1a81aca17a462db70684a324fcfb0",
+    "semantic_hash": ""
+  },
+  ".claude/skills/graphify/references/extraction-spec.md": {
+    "mtime": 1781208524.159906,
+    "ast_hash": "24808b03abfeaf5f6435bb69c0125b2c",
+    "semantic_hash": ""
+  },
+  ".claude/skills/graphify/references/github-and-merge.md": {
+    "mtime": 1781208524.1600735,
+    "ast_hash": "cde13df085e4c492aeb7ba298a996d0d",
+    "semantic_hash": ""
+  },
+  ".claude/skills/graphify/references/hooks.md": {
+    "mtime": 1781208524.1602387,
+    "ast_hash": "3f545db6ce646650bb9de588f5512a27",
+    "semantic_hash": ""
+  },
+  ".claude/skills/graphify/references/query.md": {
+    "mtime": 1781208524.16044,
+    "ast_hash": "8b40ed8c9e9060fc215219a8fc964091",
+    "semantic_hash": ""
+  },
+  ".claude/skills/graphify/references/transcribe.md": {
+    "mtime": 1781208524.1606138,
+    "ast_hash": "70f6aa30d6211f3a2c7e9fc45479f50c",
+    "semantic_hash": ""
+  },
+  ".claude/skills/graphify/references/update.md": {
+    "mtime": 1781208524.1608307,
+    "ast_hash": "0dad167a95bdb389f02fecffb60b1bc8",
+    "semantic_hash": ""
+  },
+  "ALTERACOES_REALIZADAS.txt": {
+    "mtime": 1780172920.157193,
+    "ast_hash": "6c2c3c9058e84609b1397fba9a5d14af",
+    "semantic_hash": ""
+  },
+  "ALTERACOES_v3.2_DISPLAYS.txt": {
+    "mtime": 1780177768.5759082,
+    "ast_hash": "a7c9b4654689ac2291becb34d821583c",
+    "semantic_hash": ""
+  },
+  "ANALISE_GRAFICOS.md": {
+    "mtime": 1781122366.8171368,
+    "ast_hash": "211b24527bb60791f79f36999614ea14",
+    "semantic_hash": ""
+  },
+  "ANALISE_GRAFICOS.txt": {
+    "mtime": 1781122366.812335,
+    "ast_hash": "07ea486d6c175b483ff0b917afccb6a9",
+    "semantic_hash": ""
+  },
+  "ANALISE_REQUISITOS_TDE.md": {
+    "mtime": 1779546834.2918327,
+    "ast_hash": "a60994e008facc4be3a671d48d612df5",
+    "semantic_hash": ""
+  },
+  "ApiParPrevisaoDiaria.txt": {
+    "mtime": 1781208635.2027366,
+    "ast_hash": "93da9b379b2638aac41737712d5f1e9d",
+    "semantic_hash": ""
+  },
+  "CHANGELOG.md": {
+    "mtime": 1781202547.228968,
+    "ast_hash": "62a706fa18edd66a87f1048b32f8be0c",
+    "semantic_hash": ""
+  },
+  "CHANGELOG_v3.2.0.txt": {
+    "mtime": 1780092795.7203197,
+    "ast_hash": "96854c70a1d77bf5a823d2f05c0f2704",
+    "semantic_hash": ""
+  },
+  "CHECKLIST_VERIFICACAO.md": {
+    "mtime": 1780092850.5643685,
+    "ast_hash": "046c3d128f03df9b3d2670f211dc0816",
+    "semantic_hash": ""
+  },
+  "CLAUDE.md": {
+    "mtime": 1781208891.7696106,
+    "ast_hash": "82efb97a359f5c7290bf2513d14686be",
+    "semantic_hash": ""
+  },
+  "DocumentoProjeto.txt": {
+    "mtime": 1781116328.0062559,
+    "ast_hash": "4c3aae804267274d8f41d28332c58f41",
+    "semantic_hash": ""
+  },
+  "DocumentoStatusAtualProjeto.txt": {
+    "mtime": 1780092841.5003603,
+    "ast_hash": "b47813d8aff099432349a664e728daf7",
+    "semantic_hash": ""
+  },
+  "GUIA_SISTEMA_E_TAGS.md": {
+    "mtime": 1779546846.8577583,
+    "ast_hash": "d2f849cd2ee1d3ce2071f3afa09caf96",
+    "semantic_hash": ""
+  },
+  "GUIA_TESTE_LCD.txt": {
+    "mtime": 1780176787.2345278,
+    "ast_hash": "3c9ba4558011822b9a566b5622e66df8",
+    "semantic_hash": ""
+  },
+  "README.md": {
+    "mtime": 1777473273.945576,
+    "ast_hash": "00099c6006a6f8c10db9595350a55bdb",
+    "semantic_hash": ""
+  },
+  "RESUMO_FINAL_v3.2.txt": {
+    "mtime": 1780339296.0611594,
+    "ast_hash": "2a78936415154ee75d8425bd522beedb",
+    "semantic_hash": ""
+  },
+  "RESUMO_MODIFICACOES.txt": {
+    "mtime": 1780092780.8393066,
+    "ast_hash": "dc2cfff2b15dc267185406f552b56722",
+    "semantic_hash": ""
+  },
+  "ROADMAP_v4.md": {
+    "mtime": 1781118173.5728493,
+    "ast_hash": "d08a89547c35b970c9fbb6a9bcf1dc89",
+    "semantic_hash": ""
+  },
+  "atualizacao.txt": {
+    "mtime": 1781033921.3707902,
+    "ast_hash": "6871a8dc835c0633cfda2a7032474b57",
+    "semantic_hash": ""
+  },
+  "descri\u00e7\u00e3o do projeto.txt": {
+    "mtime": 1781116320.172505,
+    "ast_hash": "32ff735cdb89499c0777c50a0b59d794",
+    "semantic_hash": ""
+  },
+  "oi.txt": {
+    "mtime": 1777970850.350199,
+    "ast_hash": "21abb0d4cbe16ba645e21cc40ff1bdf1",
+    "semantic_hash": ""
+  },
+  "paraPegarClima.txt": {
+    "mtime": 1780090598.6951587,
+    "ast_hash": "962e7410f09cae911cca8c9a8e0f829a",
+    "semantic_hash": ""
+  },
+  "relogio.txt": {
+    "mtime": 1777928572.4342766,
+    "ast_hash": "9423296a2612feffb3dbb351605cafff",
+    "semantic_hash": ""
+  },
+  ".opencode/opencode.json": {
+    "mtime": 1781210324.2003014,
+    "ast_hash": "abcc8b9dcd80bca5f9dde6d9f0c3ae79",
+    "semantic_hash": ""
+  },
+  ".opencode/plugins/graphify.js": {
+    "mtime": 1781210324.200091,
+    "ast_hash": "64ccd3c03dbfe0980b6095766f5c4e52",
+    "semantic_hash": ""
+  }
+}

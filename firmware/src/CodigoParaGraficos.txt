@@ -1,0 +1,82 @@
+A lógica profissional por trás desse layout funciona em três etapas controladas no loop() ou por um timer:Auto-Escalonamento (Y): O código armazena uma variável valor_maximo. Se a nova leitura do sensor for maior que ela, a escala do gráfico é atualizada dinamicamente com lv_chart_set_range(), e os textos das Labels laterais são recalculados matematicamente dividindo esse teto por 4.Tempo de Atualização (X): Um contador baseado em millis() calcula a diferença de tempo desde o início ou da última atualização e converte para segundos/minutos, injetando essa string na Label inferior.Abaixo está o padrão de desenvolvimento limpo utilizando a biblioteca LVGL (válido para v8 e v9):Código Estruturado e Simplescpp#include <lvgl.h>
+
+// Ponteiros globais para os componentes
+lv_obj_t * chart;
+lv_chart_series_t * ser;
+lv_obj_t * lbl_max;
+lv_obj_t * lbl_mid_high;
+lv_obj_t * lbl_mid;
+lv_obj_t * lbl_mid_low;
+lv_obj_t * lbl_tempo_x;
+
+// Variáveis de controle de dados
+int valor_maximo = 100; // Teto inicial
+unsigned long tempo_inicial = 0;
+
+void criar_interface_grafica() {
+    tempo_inicial = millis();
+
+    // 1. Criar o container do Gráfico (Deixando espaço na esquerda e embaixo)
+    chart = lv_chart_create(lv_scr_act());
+    lv_obj_set_size(chart, 220, 150);
+    lv_obj_align(chart, LV_ALIGN_CENTER, 25, -10); // Deslocado para dar margem
+    lv_chart_set_type(chart, LV_CHART_TYPE_LINE);
+    lv_chart_set_range(chart, LV_CHART_AXIS_PRIMARY_Y, 0, valor_maximo);
+    lv_chart_set_div_line_count(chart, 5, 0); // 5 linhas horizontais de grade
+    
+    // Adiciona a linha de dados
+    ser = lv_chart_add_series(chart, lv_palette_main(LV_PALETTE_BLUE), LV_CHART_AXIS_PRIMARY_Y);
+
+    // 2. Criar as Labels Laterais (Eixo Y) alinhadas com as linhas de grade
+    lbl_max      = lv_label_create(lv_scr_act());
+    lbl_mid_high = lv_label_create(lv_scr_act());
+    lbl_mid      = lv_label_create(lv_scr_act());
+    lbl_mid_low  = lv_label_create(lv_scr_act());
+
+    // Alinhamento preciso na esquerda do gráfico
+    lv_obj_align_to(lbl_max, chart, LV_ALIGN_OUT_LEFT_TOP, -5, 0);
+    lv_obj_align_to(lbl_mid_high, chart, LV_ALIGN_OUT_LEFT_TOP, -5, 37);  // 1/4 do tamanho
+    lv_obj_align_to(lbl_mid, chart, LV_ALIGN_OUT_LEFT_TOP, -5, 75);       // Metade
+    lv_obj_align_to(lbl_mid_low, chart, LV_ALIGN_OUT_LEFT_TOP, -5, 112);  // 3/4
+    
+    // 3. Criar a Label do Tempo (Eixo X) embaixo do gráfico
+    lbl_tempo_x = lv_label_create(lv_scr_act());
+    lv_obj_align_to(lbl_tempo_x, chart, LV_ALIGN_OUT_BOTTOM_MID, 0, 8);
+}
+
+// Função profissional para atualizar o ecossistema do gráfico
+void atualizar_grafico(int nova_leitura) {
+    bool precisa_atualizar_eixo = false;
+
+    // Se a leitura atual passar o teto anterior, ajusta a escala
+    if (nova_leitura > valor_maximo) {
+        valor_maximo = nova_leitura + 10; // Adiciona uma folga de 10 unidades
+        precisa_atualizar_eixo = true;
+    }
+
+    // Atualiza os textos da lateral se o teto mudou (ou na primeira execução)
+    if (precisa_atualizar_eixo) {
+        lv_chart_set_range(chart, LV_CHART_AXIS_PRIMARY_Y, 0, valor_maximo);
+        
+        // Formata strings dinamicamente dividindo a escala perfeitamente pelas linhas laterais
+        lv_label_set_text_fmt(lbl_max, "%d", valor_maximo);
+        lv_label_set_text_fmt(lbl_mid_high, "%d", (valor_maximo * 3) / 4);
+        lv_label_set_text_fmt(lbl_mid, "%d", valor_maximo / 2);
+        lv_label_set_text_fmt(lbl_mid_low, "%d", valor_maximo / 4);
+    }
+
+    // Injeta o dado na linha do gráfico
+    lv_chart_set_next_value(chart, ser, nova_leitura);
+
+    // Atualiza o tempo do eixo X (ex: "Passados: X segundos")
+    unsigned long segundos_passados = (millis() - tempo_inicial) / 1000;
+    
+    if (segundos_passados < 60) {
+        lv_label_set_text_fmt(lbl_tempo_x, "Tempo: %lus", segundos_passados);
+    } else {
+        unsigned long minutos = segundos_passados / 60;
+        unsigned long segundos_resto = segundos_passados % 60;
+        lv_label_set_text_fmt(lbl_tempo_x, "Tempo: %lum %lus", minutos, segundos_resto);
+    }
+}
+Use o código com cuidado.Explicação da Arquitetura (Visão de Desenvolvimento)Alinhamento Relativo (lv_obj_align_to): Esta função faz com que as Labels de texto fiquem presas ao gráfico por coordenadas de deslocamento (pixels). Se você mover o gráfico de lugar na tela, os números das laterais e de baixo movem-se juntos automaticamente.Otimização de Processamento: O bloco dentro de if (precisa_atualizar_eixo) só roda quando estritamente necessário. Redesenhar e re-calcular strings de texto consome processamento de CPU; fazer isso apenas quando ocorre um novo pico otimiza a taxa de quadros (FPS) da tela do seu ESP32.Escalonamento Perfeito: O uso de 5 linhas de grade horizontais (lv_chart_set_div_line_count) cria exatamente 4 espaços vazios internos. Dividindo o valor máximo por /4, *3/4 e /2, os números impressos nas labels ficam cirurgicamente posicionados em cima de cada linha de grade cinza do gráfico.Se precisar de ajuda para integrar esse bloco com o driver específico da sua tela (como o TFT_eSPI), me informe qual display você está usando e eu te passo a rotina de inicialização correspondente!

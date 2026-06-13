@@ -1,0 +1,177 @@
+{
+  ".vscode/extensions.json": {
+    "mtime": 1781291231.7354078,
+    "ast_hash": "90f13aaa6d970e2869f11ed92ffbc61a",
+    "semantic_hash": ""
+  },
+  ".vscode/settings.json": {
+    "mtime": 1781290973.4796245,
+    "ast_hash": "a6f3f0da553619f0fbd6eea5c75d1a23",
+    "semantic_hash": ""
+  },
+  "include/ChronosObsidian.h": {
+    "mtime": 1781291710.9228992,
+    "ast_hash": "c577a779b784e89a61104b079fbc27f0",
+    "semantic_hash": ""
+  },
+  "include/config/Config.h": {
+    "mtime": 1781288534.9007452,
+    "ast_hash": "2a737a125e72a885f01cd8544d007c14",
+    "semantic_hash": ""
+  },
+  "include/config/Pins.h": {
+    "mtime": 1781288533.1516986,
+    "ast_hash": "72816d80d1584935ac609f4572cf6f8c",
+    "semantic_hash": ""
+  },
+  "include/config/Version.h": {
+    "mtime": 1781288533.053696,
+    "ast_hash": "95b4ad396f0ea29ba6df7a1ff3d8a060",
+    "semantic_hash": ""
+  },
+  "include/core/models/Alarm.h": {
+    "mtime": 1781288537.247808,
+    "ast_hash": "9bb94d3bec175d57949eaee35e9ab0c0",
+    "semantic_hash": ""
+  },
+  "include/core/models/ButtonEvent.h": {
+    "mtime": 1781288537.364811,
+    "ast_hash": "0800a455cd57e2d8a585b1aae84b78a5",
+    "semantic_hash": ""
+  },
+  "include/core/models/Nota.h": {
+    "mtime": 1781288536.6477919,
+    "ast_hash": "47a0876832494bf04c825539e4806218",
+    "semantic_hash": ""
+  },
+  "include/core/models/SensorData.h": {
+    "mtime": 1781288537.5628164,
+    "ast_hash": "62473e89b3147a713de6d666f4025815",
+    "semantic_hash": ""
+  },
+  "include/core/models/WeatherData.h": {
+    "mtime": 1781288536.0837767,
+    "ast_hash": "acb5504dd8c91e242f5aa871bab09946",
+    "semantic_hash": ""
+  },
+  "include/sistema/boot/BootState.h": {
+    "mtime": 1781288538.3148365,
+    "ast_hash": "e69638a0be7997303f97a55118add5e0",
+    "semantic_hash": ""
+  },
+  "src/atuadores/audio_i2s/I2SAudio.cpp": {
+    "mtime": 1781288561.5465422,
+    "ast_hash": "03f351d523dc8101873f257db366e7d3",
+    "semantic_hash": ""
+  },
+  "src/atuadores/audio_i2s/Melodias.cpp": {
+    "mtime": 1781288556.0180135,
+    "ast_hash": "8ecd3b7ace761e2d2cca28665a9107e1",
+    "semantic_hash": ""
+  },
+  "src/atuadores/lcd/LCDDisplay.cpp": {
+    "mtime": 1781291373.511356,
+    "ast_hash": "552c93d2a0fd70f482c505f9d46fbb83",
+    "semantic_hash": ""
+  },
+  "src/atuadores/oled/OLEDDisplay.cpp": {
+    "mtime": 1781288628.024139,
+    "ast_hash": "0d779ac457dce171ab4402c0f80c7850",
+    "semantic_hash": ""
+  },
+  "src/core/Globals.cpp": {
+    "mtime": 1781288628.2282486,
+    "ast_hash": "312aa69004dfb5066c25645d86eeac3f",
+    "semantic_hash": ""
+  },
+  "src/entradas/botoes/Buttons.cpp": {
+    "mtime": 1781291710.9961226,
+    "ast_hash": "ccfc9ed3afe120e70b78cc0cacf11a5e",
+    "semantic_hash": ""
+  },
+  "src/interface/oled_ui/icones_clima/WeatherIcons.cpp": {
+    "mtime": 1781288561.5478828,
+    "ast_hash": "15dcddaebd18daa2caecfb077d8e914c",
+    "semantic_hash": ""
+  },
+  "src/interface/web/assets/WebAssets.cpp": {
+    "mtime": 1781288596.276389,
+    "ast_hash": "9acba326c19e805c0510dbf86bf9c0e9",
+    "semantic_hash": ""
+  },
+  "src/interface/web/rotas/WebRoutes.cpp": {
+    "mtime": 1781288561.5485919,
+    "ast_hash": "05aef872302958332d029ff98860bd96",
+    "semantic_hash": ""
+  },
+  "src/main.cpp": {
+    "mtime": 1781288556.3841476,
+    "ast_hash": "50050dd41dd6addb01c9b350a8673333",
+    "semantic_hash": ""
+  },
+  "src/observabilidade/logging/AppLog.cpp": {
+    "mtime": 1781288561.5451276,
+    "ast_hash": "ed7742cff4d2d90a4b53247a778012a0",
+    "semantic_hash": ""
+  },
+  "src/observabilidade/performance/PerfStorage.cpp": {
+    "mtime": 1781288561.5457923,
+    "ast_hash": "c51dbcb92ea3bd265ddd556055167688",
+    "semantic_hash": ""
+  },
+  "src/servicos/clima/WeatherService.cpp": {
+    "mtime": 1781288561.5484095,
+    "ast_hash": "d36c6ef61311864d1166a4f838d5d55a",
+    "semantic_hash": ""
+  },
+  "src/servicos/persistencia/ConfigStorage.cpp": {
+    "mtime": 1781288561.545506,
+    "ast_hash": "36af5efd8e346bd2ba413be9d953ce3a",
+    "semantic_hash": ""
+  },
+  "src/servicos/persistencia/LogStorage.cpp": {
+    "mtime": 1781288561.5456653,
+    "ast_hash": "79b537d17298bb029b6ffaad90c9dbb1",
+    "semantic_hash": ""
+  },
+  "src/servicos/persistencia/WifiStorage.cpp": {
+    "mtime": 1781288561.5453715,
+    "ast_hash": "7fbf7215255bb19d0bb0a15be4a3aa89",
+    "semantic_hash": ""
+  },
+  "src/sistema/MainLoop.cpp": {
+    "mtime": 1781291532.4019763,
+    "ast_hash": "eb96700387105582dc6f2563cf248db9",
+    "semantic_hash": ""
+  },
+  "src/sistema/boot/BootSequence.cpp": {
+    "mtime": 1781288561.5487556,
+    "ast_hash": "c55804e342cb2583f5020aae4f57845f",
+    "semantic_hash": ""
+  },
+  "src/sistema/energia/SleepManager.cpp": {
+    "mtime": 1781288561.5460188,
+    "ast_hash": "cc6644dbb0289615bfc4ab2bc2784dde",
+    "semantic_hash": ""
+  },
+  "src/sistema/tasks/DisplayTask.cpp": {
+    "mtime": 1781288561.5462425,
+    "ast_hash": "d901eaf1167aeafa77358d34c34a534a",
+    "semantic_hash": ""
+  },
+  "src/sistema/tasks/SensorTask.cpp": {
+    "mtime": 1781288561.5461187,
+    "ast_hash": "ebf3e913357c7142385035d5425d2436",
+    "semantic_hash": ""
+  },
+  "SPLIT_REPORT.txt": {
+    "mtime": 1781288561.5510254,
+    "ast_hash": "fa287ec92b81b882693f45ba731f75de",
+    "semantic_hash": ""
+  },
+  "src/vercaoCompleta.txt": {
+    "mtime": 1781292447.0733232,
+    "ast_hash": "89ddb6cb6b436b8537950b6b226633ab",
+    "semantic_hash": ""
+  }
+}

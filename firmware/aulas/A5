@@ -1,0 +1,553 @@
+RA01 A05: Otimização, Energia e
+Throughput — Prática
+Formato: Material prático para sala Disciplina: Performance de Sistemas Ciberfísicos
+Professor: Fábio Bettio Ano: 2026 Resultado de Aprendizagem: RA01 Base:
+RA01_A05_Otimizacao_Energia_e_Throughput_Conteudo_V3.md Versão: 3.1
+1. Título
+Práticas de Otimização de Compilação, Gestão Energética e Trade-offs
+Experimentos guiados com dificuldade incremental
+2. Objetivo da Aula Prática
+Medir o impacto real das flags de otimização do GCC no tempo de execução
+Observar a diferença entre dependências fortes e operações independentes no
+fluxo de instruções
+Implementar e testar os modos de economia de energia do ESP32
+Validar a persistência de dados no domínio RTC (RTC_DATA_ATTR)
+Analisar trade-offs reais entre latência, throughput e autonomia
+3. Como Estudar e Executar
+1. Rodar o código fornecido sem modificações
+2. Registrar o resultado medido no Serial Monitor
+3. Explicar o que aconteceu e por quê
+4. Modificar apenas o ponto indicado no exercício
+5. Comparar com o caso original
+6. Registrar a conclusão da equipe
+Pergunta guia para todos os exercícios:O que mudou e por que mudou?
+4. Ferramenta de Medição
+unsigned long t1 = micros();
+// trecho a medir
+unsigned long t2 = micros();
+Serial.printf("Tempo: %lu us\n", t2 - t1);
+Boas práticas:
+Medir blocos com trabalho suficiente (mínimo 100.000 iterações)
+Repetir o teste pelo menos 3 vezes
+Anotar o melhor valor e um valor típico
+Comparar números, não apenas impressões visuais
+BLOCO A: Otimização de Compilação e
+IPC
+5. Exercício 1 — O "Blink Matemático"
+(Impacto das Flags de Compilação)
+Objetivo: Visualizar fisicamente (pelo LED) e numericamente (pelo Serial Monitor) o
+impacto das flags -O0, -O2 e -O3 do GCC no tempo de processamento.
+Código para testar:
+// *** ALTERE ESTA LINHA ENTRE "O0", "O2" e "O3" ***
+#pragma GCC optimize ("O0")
+const int LED_PIN = 2;
+volatile float calculo_inutil = 0;void setup() {
+pinMode(LED_PIN, OUTPUT);
+Serial.begin(115200);
+}
+void loop() {
+unsigned long t1 = micros();
+for (long i = 0; i < 1000000000; i++) {
+calculo_inutil += 0.01f;
+}
+unsigned long t2 = micros();
+digitalWrite(LED_PIN, !digitalRead(LED_PIN));
+Serial.print("Latência de processamento (us): ");
+Serial.println(t2 - t1);
+}
+Tarefa:
+1. Compilar e carregar com #pragma GCC optimize ("O0")
+2. Anotar o tempo de execução no Serial Monitor e observar a velocidade do LED
+3. Registrar o tamanho final de uso apontado na saída de compilação: Flash
+(espaço do sketch) e RAM (memória para variáveis globais)
+4. Repetir esse processo com "O2" e depois com "O3", registrando tempo, Flash e
+RAM
+5. Preencher a tabela abaixo
+Resultado esperado:
+O tempo cairá drasticamente de -O0 para -O3
+O LED piscará cada vez mais rápido
+6. Tabela do Exercício 1
+Equipe
+1
+2
+TempoTempoTempoFlash -RAM -Qual o
+-O0-O2-O3O0 / -O3O0 / -O3mais
+(us)(us)(us)(bytes)(bytes)rápido?
+Por
+quê?Equipe
+TempoTempoTempoFlash -RAM -Qual o
+-O0-O2-O3O0 / -O3O0 / -O3mais
+(us)(us)(us)(bytes)(bytes)rápido?
+Por
+quê?
+3
+4
+7. Exercício 2 — Dependência de Dados
+vs Operações Independentes
+Objetivo: Comparar o tempo de execução de operações com dependência forte
+(cada linha depende da anterior) versus operações independentes (cada variável é
+isolada).
+Código A — Dependência Forte (um único caminho de dados):
+#pragma GCC optimize ("O0")
+volatile int x = 1;
+void setup() {
+Serial.begin(115200);
+delay(1000);
+unsigned long t1 = micros();
+for (long i = 0; i < 1000000000; i++) {
+x = x + 1;
+x = x * 2;
+x = x - 3;
+}
+unsigned long t2 = micros();
+Serial.printf("Tempo com dependências fortes: %lu us\n", t2 - t1);
+}
+void loop() {}
+Código B — Operações Independentes (dados paralelos):
+#pragma GCC optimize ("O0")
+volatile int a = 1, b = 2, c = 3;void setup() {
+Serial.begin(115200);
+delay(1000);
+unsigned long t1 = micros();
+for (long i = 0; i < 1000000000; i++) {
+a = a + 1;
+b = b * 2;
+c = c - 3;
+}
+unsigned long t2 = micros();
+Serial.printf("Tempo com operações independentes: %lu us\n", t2 - t1);
+}
+void loop() {}
+Tarefa:
+1. Rodar o Código A e registrar o tempo
+2. Rodar o Código B e registrar o tempo
+3. Observar e anotar também o uso de memória no compilador para essa variação:
+Flash (sketch) e RAM (variáveis globais)
+4. Repetir os passos anteriores compilando ambos com #pragma GCC optimize
+("O3")
+5. Explicar por que o Código B pode ser mais rápido
+Resultado esperado:
+O Código B tende a ser mais rápido porque o compilador e o processador
+conseguem explorar o paralelismo entre a, b e c
+Com -O3, a diferença pode ser ainda maior graças ao Instruction Scheduling
+8. Tabela do Exercício 2
+Dep.
+Equipe
+Forte -
+O0 (us)
+1
+2
+Indep. -
+O0 (us)
+Dep.
+Forte -
+O3 (us)
+Indep. -Flash -
+O3 (us)O0/-O3
+RAM -
+O0/-
+O3
+ConclusãoDep.
+Equipe
+Forte -
+O0 (us)
+Indep. -
+O0 (us)
+Dep.
+Forte -
+O3 (us)
+Indep. -Flash -
+O3 (us)O0/-O3
+RAM -
+O0/-
+Conclusão
+O3
+3
+4
+BLOCO B: Gestão Energética
+9. Exercício 3 — Light Sleep (Suspensão
+Rápida)
+Objetivo: Implementar o modo Light Sleep e medir a latência de retorno.
+Código para testar:
+#include "esp_sleep.h"
+void setup() {
+Serial.begin(115200);
+delay(1000);
+Serial.println("Entrando em Light Sleep por 3 segundos...");
+Serial.flush();
+unsigned long t1 = micros();
+esp_sleep_enable_timer_wakeup(3000000ULL);
+esp_light_sleep_start();
+unsigned long t2 = micros();
+Serial.printf("Acordou! Latência de retorno: %lu us\n", t2 - t1);
+Serial.println("Observe que o programa CONTINUOU de onde parou.");
+}
+void loop() {}
+Tarefa:
+1. Rodar o código e verificar que o sistema "continua" de onde parou2. Registrar a latência de retorno
+3. Responder: A SRAM foi mantida? O contexto se perdeu?
+Resultado esperado:
+O programa imprime a mensagem de retorno normalmente
+A SRAM permanece intacta (contexto total preservado)
+Latência de retorno baixa (sub-milissegundo)
+10. Exercício 4 — Deep Sleep com
+Persistência RTC
+Objetivo: Implementar o modo Deep Sleep e validar que a variável RTC_DATA_ATTR
+sobrevive ao ciclo de reinicialização.
+Código para testar:
+#include "esp_sleep.h"
+RTC_DATA_ATTR int contadorDeBoots = 0;
+void setup() {
+Serial.begin(115200);
+delay(1000);
+contadorDeBoots++;
+Serial.printf("Boot número: %d\n", contadorDeBoots);
+if (contadorDeBoots >= 5) {
+Serial.println("5 ciclos completados! Parando.");
+while(true) { delay(1000); }
+}
+Serial.println("Entrando em Deep Sleep por 5 segundos...");
+Serial.flush();
+esp_sleep_enable_timer_wakeup(5000000ULL);
+esp_deep_sleep_start();
+}
+void loop() {}
+Tarefa:
+1. Carregar o código e observar o Serial Monitor por 5 ciclos2. Verificar se o contadorDeBoots incrementa a cada despertar
+3. Responder: O que aconteceria com uma variável sem RTC_DATA_ATTR?
+Resultado esperado:
+O contador incrementa de 1 a 5, provando que a memória RTC persiste
+Uma variável normal seria reinicializada para 0 a cada boot
+11. Tabela dos Exercícios 3 e 4
+Boot
+Latência
+Equipe
+LightContexto
+Sleeppreservado?
+(us)
+Count
+Variável sem
+noRTC_DATA_ATTR
+Deepmanteria o valor?
+Conclusão
+Sleep?
+1
+2
+3
+4
+BLOCO C: Trade-offs e Análise de
+Compromisso
+12. Exercício 5 — DVFS: Clock Alto vs
+Clock Baixo
+Objetivo: Comparar o tempo de execução de uma tarefa computacional rodando a
+240 MHz versus 80 MHz, e discutir o compromisso energia × tempo.
+Código para testar:// Arduino Core para ESP32 já disponibiliza setCpuFrequencyMhz() e
+getCpuFrequencyMhz()
+// Não é necessário incluir headers adicionais do ESP-IDF
+volatile float resultado = 0;
+void executarCarga() {
+unsigned long t1 = micros();
+for (long i = 0; i < 1000000000; i++) {
+resultado += 0.01f;
+}
+unsigned long t2 = micros();
+Serial.printf("Tempo de processamento: %lu us (CPU: %d MHz)\n", t2 - t1,
+getCpuFrequencyMhz());
+}
+void setup() {
+Serial.begin(115200);
+delay(1000);
+// Teste 1: Clock máximo (240 MHz)
+setCpuFrequencyMhz(240);
+Serial.println("--- Teste a 240 MHz ---");
+executarCarga();
+delay(500);
+// Teste 2: Clock reduzido (80 MHz)
+setCpuFrequencyMhz(80);
+Serial.println("--- Teste a 80 MHz ---");
+executarCarga();
+// Restaurar
+setCpuFrequencyMhz(240);
+}
+void loop() {}
+Tarefa:
+1. Rodar o código e registrar os tempos em ambas as frequências
+2. Calcular: quantas vezes mais lento ficou no clock baixo?
+3. Responder: Se a bateria dura X horas no clock alto, duraria mais no clock baixo?
+Sempre vale a pena reduzir?
+Resultado esperado:
+O tempo a 80 MHz deve ser aproximadamente 3x maior que a 240 MHz
+A economia de energia é real, mas o Time-to-Finish aumenta proporcionalmente13. Tabela do Exercício 5
+Equipe
+Tempo aTempo a
+240 MHz80 MHz
+(us)(us)
+Fator de
+aumento
+Vale a pena
+para um
+Conclusão
+sistema crítico?
+1
+2
+3
+4
+14. Exercício 6 — Desafio Final:
+Estratégia Energética
+Objetivo: Tomar uma decisão de projeto real, justificando tecnicamente com base nos
+resultados da aula.
+Cenários (cada equipe escolhe um):
+Cenário
+A
+B
+C
+D
+Descrição
+Sensor IoT rural alimentado por painel solar. Coleta temperatura a cada
+10 minutos e envia via LoRa.
+Controlador PID de robô móvel que precisa responder em menos de
+1ms. Alimentado por bateria LiPo.
+Gateway Wi-Fi que recebe dados de 20 sensores BLE e retransmite via
+MQTT a cada 30 segundos.
+Sistema de alarme residencial que monitora 4 sensores PIR e aciona
+uma sirene instantaneamente.
+Tarefa: Para o cenário escolhido, a equipe deve definir:
+1. Modo de energia principal: Active, Light Sleep ou Deep Sleep?
+2. Frequência de CPU: 240 MHz, 160 MHz ou 80 MHz?3. Uso de RTC_DATA_ATTR: Necessário? Para quais dados?
+4. Flag de compilação: -O2 ou -O3? Justifique.
+5. Trade-off principal: Qual métrica foi sacrificada (latência, throughput ou
+autonomia)?
+Entrega:
+Estratégia escolhida
+Justificativa técnica baseada nos dados dos exercícios anteriores
+Risco ou custo introduzido pela decisão
+15. Tabela do Desafio Final
+Modo
+Equipe
+Cenário
+de
+Frequência
+RTC?
+Energia
+FlagTrade-
+GCCoff
+Justificativa
+1
+2
+3
+4
+16. Quadro para Acompanhar as
+Equipes
+Equipe
+Equipe
+1
+Equipe
+2
+Ex. 1Ex. 2Ex. 3Ex. 4Ex. 5Desafio
+(Blink)(Deps.)(Light)(Deep)(DVFS)FinalEquipe
+Ex. 1Ex. 2Ex. 3Ex. 4Ex. 5Desafio
+(Blink)(Deps.)(Light)(Deep)(DVFS)Final
+Equipe
+3
+Equipe
+4
+Sugestão de preenchimento:
+ok — executou
+medido — registrou valores
+hipótese validada — explicou corretamente
+com dúvida — precisa de apoio
+17. Fechamento da Prática
+Ao final desta aula, você deve consolidar os seguintes aprendizados:
+O compilador é seu aliado: as flags -O2 e -O3 otimizam o binário sem alterar sua
+lógica
+Dependências entre variáveis criam stalls que reduzem o IPC
+Light Sleep preserva o contexto e retorna rapidamente
+Deep Sleep economiza energia radicalmente, mas exige RTC_DATA_ATTR para
+manter dados
+DVFS permite trocar velocidade por economia em tempo de execução
+Não existe solução universal: cada projeto demanda uma análise de
+compromisso
+18. Síntese da Aula
+Ao final da prática, você deve conseguir responder:
+Qual a diferença prática entre -O0, -O2 e -O3?
+Por que operações independentes são mais rápidas que operações encadeadas?
+Quando usar Light Sleep versus Deep Sleep?O que acontece com uma variável sem RTC_DATA_ATTR no Deep Sleep?
+Quando vale a pena reduzir o clock da CPU?
+Como equilibrar latência, throughput e autonomia em um projeto real?
+Referências
+RA01_A05_Otimizacao_Energia_e_Throughput_Conteudo_V3.md — Material
+teórico de referência
+RA01_A04_Memoria_Cache_e_DMA_melhoria.md — Fundamentos de IPC e
+Hazards
+ESP-IDF Programming Guide. Sleep Modes. Espressif Systems.
+ESP-IDF Programming Guide. Power Management. Espressif Systems.
+
+
+
+Página
+1
+de 6
+RA01 A05: Otimização, Energia e Throughput
+— Slides Teóricos
+Formato: Slides para apresentação em sala de aula Disciplina: Performance de Sistemas
+Ciberfísicos Professor: Fábio Bettio Ano: 2026 Resultado de Aprendizagem: RA01 Versão: 1.0
+Agenda da Aula
+1. Da Lógica ao Metal — Compilador, Kernel e Binário
+2. IPC e Otimização de Compilação (-O2 vs -O3)
+3. Otimização no SoC — Data Aliasing e False Sharing
+4. Gestão Energética — DVFS e Sleep Modes
+5. Trade-offs — Latência vs Throughput vs Autonomia
+6. Laboratório Prático — O "Blink Matemático"
+1. Da Lógica ao Metal
+O caminho do seu código até o hardware
+Compilador: Traduz seu código em instruções otimizadas para a CPU. Decide o
+mapeamento de variáveis para registradores e a sequência de execução.
+Kernel: Autoriza e executa ações críticas (Syscalls) — como mudar a frequência da CPU ou
+acessar o Wi-Fi.
+Binário (ISA): O produto final. Contém sua lógica e as requisições de serviço ao Sistema
+Operacional.
+Seu código não fala diretamente com o hardware. O Kernel é o mediador.
+2. IPC — Instructions Per Clock
+O indicador de eficiência do seu processador
+IPC = 1 → Cenário ideal: 1 instrução finalizada por ciclo de clock
+IPC < 1 → O processador está gerando stalls (paradas)
+plaintext
+Código C++ → Compilador (GCC) → Binário (ISA) → Kernel (RTOS) → Hardware (CPU
+Causas de queda do IPC:
+Tipo de Stall Causa Exemplo
+Hazard de
+Dados
+Instrução depende do resultado
+da anterior
+float b = a * 2; float c =
+b + 1;
+Hazard de
+Controle
+Erro na previsão de salto (Branch
+Prediction) if/else , for , while
+Hazard de
+Cache
+Dado ausente na cache (Cache
+Miss)
+Acesso aleatório a arrays
+grandes
+Objetivo: Aproximar o IPC real do IPC ideal usando otimizações de compilação.
+3. Flags de Otimização do GCC
+-O2 — Otimização Estável
+Eliminação de código morto
+Propagação de constantes
+Instruction Scheduling (reordena instruções para evitar stalls)
+Mantém o binário compacto (cabe na cache L1/L2)
+-O3 — Otimização Agressiva
+Loop Unrolling: Desenrola laços → menos decisões condicionais
+Vetorização (SIMD): Agrupa operações em uma única instrução
+Inlining Agressivo: Substitui chamadas de função pelo código inline
+Binário maior → risco de Cache Thrashing
+Alerta: Não Confunda com "Big O"
+Conceito O que é Exemplo
+Big O —
+O(n), O(n2)
+Complexidade Algorítmica
+(Lógica) Quantos passos o código dá
+-O1, -O2, -O3 Otimização de Hardware
+(Metal)
+Quão rápido cada passo é
+executado
+Seu algoritmo O(n2) continuará sendo O(n2) com -O3 . Mas cada iteração será
+processada em menos ciclos de clock.
+4. Otimização no SoC — Problemas de Memória
+4.1 Data Aliasing
+O compilador suspeita que dois ponteiros apontem para a mesma região de memória
+Para evitar corrupção, ele desativa otimizações naquele trecho
+Solução: Usar a palavra-chave restrict (C99) para garantir ao compilador que os
+ponteiros são independentes
+4.2 False Sharing (Dual-Core)
+Dois núcleos modificam variáveis diferentes, mas na mesma linha de cache (32 bytes)
+Cada escrita invalida o cache do outro núcleo → Cache Thrashing
+Solução: Separar variáveis com __attribute__((aligned(32))) (Padding)
+5. Gestão Energética
+5.1 DVFS — Dynamic Voltage and Frequency Scaling
+Reduz a frequência e a tensão da CPU em tempo de execução
+ESP32: de 240 MHz → 80 MHz via Syscall
+Economia imediata de energia
+Aumento do tempo de processamento (Time-to-Finish)
+5.2 Sleep Modes do ESP32
+Modo Consumo Retorno Contexto Uso
+Active ~160mA Imediato Total (SRAM) Robótica (PID)
+Light Sleep ~0.8mA <1.2ms Total (SRAM) Eventos rápidos (I2C)
+Deep Sleep ~10µA Bootloader Apenas RTC IoT rural, sensores
+5.3 Retenção de Contexto — Memória RTC
+O problema:
+Deep Sleep destrói toda a RAM. Como manter dados entre ciclos?
+A solução:
+RTC_DATA_ATTR → Aloca a variável na memória RTC (não destruída no Deep Sleep)
+6. Trade-offs — O Triângulo Impossível
+Você não pode maximizar tudo ao mesmo tempo:
+Latência mínima (Hard Real-Time) → Sem Deep Sleep, sem economia
+Throughput máximo → Race-to-Sleep: clock máximo + DMA + suspensão imediata
+Autonomia máxima → Deep Sleep agressivo, mas perde contexto e latência de reconexão
+Laboratório: O "Blink Matemático"
+Objetivo: Ver o impacto das flags de compilação no LED
+cpp
+#include "esp_sleep.h"
+// Variáveis que sobrevivem ao Deep Sleep
+RTC_DATA_ATTR float pesos[3] = {0.87, 0.42, 0.11};
+RTC_DATA_ATTR int ciclos = 0;
+void setup() {
+ciclos++;
+aplicar_inferencia(pesos);
+esp_sleep_enable_timer_wakeup(5000000ULL); // 5 segundos
+esp_deep_sleep_start();
+}
+plaintext
+Latência
+/ \
+/ \
+/ \
+Throughput ——— Autonomia
+Resultados Esperados do Experimento
+Flag Velocidade do
+LED
+Latência no
+Serial O que o compilador fez
+-
+O0 Lento (visível) Alta Nenhuma otimização
+-
+O2 Rápido Média Scheduling + eliminação de código
+morto
+-
+O3 Estroboscópico Baixa Loop Unrolling + Inlining + SIMD
+O Big O do algoritmo não mudou. O que mudou foi a eficiência do "Metal".
+Referências
+cpp
+#pragma GCC optimize ("O0") // Altere para "O2" ou "O3"
+const int LED_PIN = 2;
+volatile float calculo_inutil = 0;
+void setup() {
+pinMode(LED_PIN, OUTPUT);
+Serial.begin(115200);
+}
+void loop() {
+unsigned long t0 = micros();
+for (long i = 0; i < 1000000; i++) {
+calculo_inutil += 0.01f;
+}
+unsigned long t1 = micros();
+digitalWrite(LED_PIN, !digitalRead(LED_PIN));
+Serial.print("Latência (us): ");
+Serial.println(t1 - t0);
+}
+Patterson & Hennessy. Computer Organization and Design: The Hardware/Software
+Interface. Morgan Kaufmann.
+Espressif Systems. ESP-IDF Programming Guide — Power Management.
+Espressif Systems. ESP32 Technical Reference Manual — RTC Memory.
+Resumo da Aula
+Conceito Ferramenta Impacto
+IPC Métrica de eficiência Diagnóstico de stalls
+-O2 / -O3 Flags do GCC Otimização automática de binário
+Data Aliasing restrict Libera otimização de ponteiros
+False Sharing aligned(32) Elimina Cache Thrashing multicore
+DVFS Syscall de frequência Economia energética dinâmica
+Sleep Modes esp_deep_sleep_start() Autonomia extrema em IoT
+RTC Memory RTC_DATA_ATTR Persistência no Deep Sleep
+Próxima aula: Aprofundamento em conectividade e protocolos de comunicação.

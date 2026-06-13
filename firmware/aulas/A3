@@ -1,0 +1,720 @@
+Aula 03: Práticas Básicas, C/C++ e Testes de
+memória do ESP32
+Disciplina: Performance de Sistemas Ciberfísicos Resultado de Aprendizagem: RA01 Versão:
+1.0
+Parte 2: Prática
+2.1 Cuidados ao Trabalhar com o ESP32
+2.1.1 Proteção contra Descarga Eletrostática (ESD)
+O ESP32 é sensível à descarga Eletrostática. Para evitar danos:
+• Sempre aterrar-se antes de manusear o ESP32.
+• Utilizar pulseira antiestática se disponível.
+• Trabalhar sobre um tapete antiestático.
+• Evitar tocar diretamente nos pinos e trilhas da placa.
+2.1.2 Alimentação Correta: 3.3V e Não 5V!
+• O ESP32 opera em 3.3V, enquanto muitos componentes e sensores trabalham em 5V.
+• Nunca conecte um pino de 5V diretamente a uma entrada do ESP32, pois pode daniﬁcá-
+lo.
+• Caso precise usar sensores de 5V, utilize um conversor de nível lógico.
+2.1.3 Corrente e Reguladores de Tensão
+• O ESP32 pode consumir até 500 mA, especialmente ao utilizar Wi-Fi/Bluetooth.
+• Caso utilize Alimentação externa, preﬁra fontes de pelo menos 1A.
+• Se for alimentar com bateria, use um regulador de Tensão de 3.3V conﬁável.
+2.1.4 Conexões e Soldagem
+• Evite soldar diretamente no ESP32.
+• Ao conectar ﬁos e componentes, veriﬁque as ligações antes de energizar a placa.
+• Sempre conﬁra o esquema de ligação antes de conectar sensores e atuadores.2.1.5 Manuseio e Ambiente de Trabalho
+• Evite umidade e superfícies metálicas condutoras.
+• Cuidado ao armazenar o ESP32 para Não dobrar os pinos.
+• Proteja a placa contra poeira e resíduos que possam comprometer os contatos.
+2.1.6 Atualização de Firmware e Upload de Código
+• Certiﬁque-se de selecionar corretamente a porta serial e o modelo do ESP32 na IDE.
+• Não desconecte a placa durante um upload de código para evitar falhas de gravação.
+• Caso o ESP32 Não entre em modo de upload, utilize o botào BOOT ao iniciar a gravação.
+2.1.7 Cuidados com Excesso de Corrente nos GPIOs
+• Os pinos de saída fornecem no máximo 40 mA, mas o ideal é limitar a 20 mA.
+• Se precisar controlar motores ou relés, utilize drivers apropriados (como um ULN2003 ou
+MOSFETs).
+2.2 Preparação do Ambiente e Testes Iniciais
+Crie um pequeno programa que pisque o LED na placa do ESP32. O LED deve piscar 4 vezes em
+um intervalo de 1 segundo e ﬁcar 1 segundo apagado.
+Código exemplo (Arduino IDE):
+#define LED_PIN 2
+// GPIO2 é o LED built-in na maioria dos ESP32 DevKit
+void setup() {
+pinMode(LED_PIN, OUTPUT);
+Serial.begin(115200);
+Serial.println("ESP32 - Teste de LED");
+}
+void loop() {
+// Piscar 4 vezes
+for (int i = 0; i < 4; i++) {
+digitalWrite(LED_PIN, HIGH);
+delay(125); // LED aceso por 125ms
+digitalWrite(LED_PIN, LOW);
+delay(125); // LED apagado por 125ms
+}
+// Pausa de 1 segundo
+delay(1000);
+}2.3 Exercícios de Reforço
+Exercício 1: Piscar o LED 4 vezes e dar uma pausa
+O LED do ESP32 deve piscar 4 vezes seguidas com um intervalo curto entre cada piscada e, após
+isso, deve aguardar 2 segundos antes de repetir o ciclo.
+Exercício 2: Piscar em sequência decrescente (usando loop for por sequência)
+O LED deve piscar 4 vezes seguidas, fazer uma pausa de 2 segundos, depois piscar 3 vezes
+seguidas, pausa, 2 vezes seguidas, pausa, e ﬁnalmente 1 vez antes de reiniciar o ciclo.
+Exercício 3: Sequência decrescente com um único loop for
+Implementar a mesma lógica do exercício anterior, mas utilizando apenas um loop for para
+controlar toda a sequência de piscadas e pausas.
+Exercício 4: Alternar dois LEDs piscando em padrões diferentes
+Conectar dois LEDs ao ESP32. O primeiro LED deve piscar 3 vezes rapidamente enquanto o
+segundo LED permanece apagado, depois o segundo LED deve piscar 2 vezes lentamente
+enquanto o primeiro ﬁca apagado. O ciclo deve repetir indeﬁnidamente.
+2.4 Exercícios Práticos de memória
+2.4.1 Velocidade de Acesso à RAM no ESP32
+Implemente uma função para testar o tempo de acesso à memória RAM. Anote os resultados e
+analise que conclusão se pode tirar.
+Código exemplo:
+void setup() {
+Serial.begin(115200);
+delay(1000);
+const int SIZE = 10000;
+int* arr = (int*)malloc(SIZE * sizeof(int));
+if (arr == NULL) {
+Serial.println("Falha ao alocar memória!");
+return;
+}
+// Escrita
+unsigned long startWrite = micros();
+for (int i = 0; i < SIZE; i++) {
+arr[i] = i;
+}unsigned long endWrite = micros();
+// Leitura
+volatile int sum = 0;
+unsigned long startRead = micros();
+for (int i = 0; i < SIZE; i++) {
+sum += arr[i];
+}
+unsigned long endRead = micros();
+Serial.printf("Tempo de escrita: %lu us\n", endWrite - startWrite);
+Serial.printf("Tempo de leitura: %lu us\n", endRead - startRead);
+Serial.printf("Tempo total por acesso (escrita): %.2f ns\n",
+(float)(endWrite - startWrite) * 1000.0 / SIZE);
+Serial.printf("Tempo total por acesso (leitura): %.2f ns\n",
+(float)(endRead - startRead) * 1000.0 / SIZE);
+free(arr);
+}
+void loop() {}
+2.4.2 Usando Diferentes Tipos de memória
+RAM Interna (variáveis normais):
+int buffer[100]; // Alocado automaticamente na SRAM interna
+PSRAM (caso disponível, ESP32-WROVER):
+#include "esp_heap_caps.h"
+void setup() {
+Serial.begin(115200);
+// Verificar se PSRAM está disponível
+if (psramFound()) {
+Serial.printf("PSRAM disponivel: %d bytes\n", ESP.getPsramSize());
+// Alocar na PSRAM
+uint8_t* bigBuffer = (uint8_t*)ps_malloc(1024 * 1024); // 1 MB
+if (bigBuffer != NULL) {
+Serial.println("1 MB alocado na PSRAM com sucesso!");
+free(bigBuffer);
+}
+} else {
+Serial.println("PSRAM nao disponivel neste modulo.");
+}
+}
+void loop() {}Armazenamento de dados ﬁxos na Flash SPI (NVS):
+#include <Preferences.h>
+Preferences prefs;
+void setup() {
+Serial.begin(115200);
+prefs.begin("config", false); // namespace "config", read/write
+// Salvar dados
+prefs.putString("ssid", "MinhaRede");
+prefs.putInt("threshold", 42);
+// Ler dados
+String ssid = prefs.getString("ssid", "default");
+int threshold = prefs.getInt("threshold", 0);
+Serial.printf("SSID: %s, Threshold: %d\n", ssid.c_str(), threshold);
+prefs.end();
+}
+void loop() {}
+2.4.3 Alocação de memória e Limites
+Implemente uma função para preencher a memória do ESP32 usando malloc. Observe o que
+acontecerá quando a memória encher totalmente.
+Código exemplo:
+void setup() {
+Serial.begin(115200);
+delay(1000);
+Serial.printf("Heap livre inicial: %d bytes\n", ESP.getFreeHeap());
+int count = 0;
+int blockSize = 1024; // Aloca 1 KB por vez
+while (true) {
+void* ptr = malloc(blockSize);
+if (ptr == NULL) {
+Serial.printf("Memória esgotada apos %d blocos (%d KB)\n",
+count, count * blockSize / 1024);
+Serial.printf("Heap livre restante: %d bytes\n", ESP.getFreeHeap());
+break;
+}
+memset(ptr, 0, blockSize); // Preenche o bloco
+count++;if (count % 50 == 0) {
+Serial.printf("Blocos alocados: %d, Heap livre: %d bytes\n",
+count, ESP.getFreeHeap());
+}
+}
+}
+void loop() {}
+Atenção: Este exercício é educacional. Em produção, sempre veriﬁque o retorno de
+malloc() e libere memória com free() quando Não for mais necessária. O ESP32 pode
+reiniciar (watchdog reset) se a memória ﬁcar criticamente baixa.
+Referências
+Documentação Oﬁcial Espressif
+1. ESP32 Datasheet. Espressif Systems. disponível em: https://www.espressif.com/sites/default/
+ﬁles/documentation/esp32_datasheet_en.pdf
+2. ESP32 Technical Reference Manual. Espressif Systems. disponível em: https://
+www.espressif.com/sites/default/ﬁles/documentation/
+esp32_technical_reference_manual_en.pdf
+3. Memory Types (ESP-IDF Programming Guide). Espressif Systems. disponível em: https://
+docs.espressif.com/projects/esp-idf/en/stable/esp32/api-guides/memory-types.html
+4. Heap Memory Allocation (ESP-IDF Programming Guide). Espressif Systems. disponível
+em: https://docs.espressif.com/projects/esp-idf/en/stable/esp32/api-reference/system/
+mem_alloc.html
+5. Speed Optimization (ESP-IDF Programming Guide). Espressif Systems. disponível em:
+https://docs.espressif.com/projects/esp-idf/en/stable/esp32/api-guides/performance/speed.html
+Fontes Estatísticas
+1. Number of IoT connected devices worldwide 2019-2030. Statista, 2023. disponível em:
+https://www.statista.com/statistics/1183457/iot-connected-devices-worldwide/
+Documento gerado pelo enriquecimento dos materiais da Aula 03.
+
+
+Página
+1
+de 19
+RA01: Memória, Cache e Transferência
+de Dados
+Disciplina: Performance de Sistemas Ciberfísicos Professor: Prof. Fábio Bettio
+Ano: 2026
+Resultado de Aprendizagem: RA01 Arquivo: RA01_A04 Versão: 1.1
+Visão Geral
+Neste material, você vai estudar como memória, cache, alinhamento de dados e DMA
+influenciam o desempenho real de um sistema embarcado. A proposta não é apenas
+listar definições, mas ajudar você a construir uma visão arquitetural coerente de como
+processador, memória e barramento afetam a latência observada pelo software e, por
+consequência, o comportamento de sistemas ciberfísicos em tempo real ou quase
+tempo real.
+A ideia central é simples: desempenho não depende apenas da quantidade de
+instruções executadas. Em muitos casos, dois algoritmos com o mesmo resultado
+funcional e uma complexidade assintótica semelhante podem apresentar tempos
+muito diferentes porque:
+Acessam dados em ordens distintas;
+Exploram ou desperdiçam localidade;
+Usam estruturas de dados com diferentes custos de alinhamento;
+Forçam mais ou menos tráfego no barramento;
+Ocupam a CPU com cópias que poderiam ser delegadas.
+Em sistemas ciberfísicos, essa discussão é especialmente importante porque não
+basta “rodar rápido em média”. É preciso observar:
+Tempo total de execução;
+Latência máxima em trechos críticos;
+Previsibilidade temporal;
+Uso de CPU;
+Custo energético indireto associado ao tempo em atividade.
+O ESP32 é um excelente laboratório para esse estudo porque combina:
+Microcontrolador de uso real em aplicações embarcadas;
+Memória interna e externa com características distintas;
+Execução de código a partir da flash mediada por cache;
+Múltiplos periféricos orientados a fluxo de dados;
+Suporte a DMA em cenários típicos de sistemas embarcados.
+Com essa base, ficará mais fácil entender por que temas como pipeline, baixo nível,
+energia e throughput não devem ser analisados de forma isolada do caminho
+percorrido por dados e instruções na arquitetura.
+1. Gargalos de Memória e Cache
+1.1 O descompasso entre CPU e memória
+Um dos fatos mais importantes da arquitetura de computadores é que a velocidade de
+processamento da CPU e a velocidade de acesso à memória evoluem em ritmos
+diferentes. O processador tende a operar em uma escala de poucos ciclos para
+operações aritméticas e lógicas simples, enquanto os dados de que ele precisa nem
+sempre estão disponíveis com a mesma rapidez.
+Esse descompasso produz o chamado gargalo de memória. Em termos práticos, isso
+significa que:
+A CPU pode estar pronta para executar;
+A instrução seguinte pode depender de um dado ainda não entregue;
+O pipeline precisa esperar;
+O sistema gasta ciclos sem produzir trabalho útil proporcional.
+No ESP32, esse efeito aparece quando:
+O código é executado a partir da flash com dependência da cache;
+Os dados estão em regiões de memória mais lentas ou menos favoráveis;
+Há padrões de acesso pouco localizados;
+O processador precisa esperar dados antes de continuar a execução.
+Esse ponto é importante porque, ao observar um programa “lento”, é comum culpar
+imediatamente a quantidade de linhas de código ou a presença de operações
+matemáticas. Em muitas situações, porém, o problema dominante não é a
+computação, mas a espera.
+1.2 A ilusão de que “executar instrução” é
+sempre o custo principal
+Ao estudar programação em alto nível, é comum imaginar que o custo principal vem
+da execução das instruções explícitas do programa. No entanto, do ponto de vista
+arquitetural, cada instrução depende de uma cadeia de suporte:
+Busca da instrução;
+Decodificação;
+Busca de operandos;
+Leitura e escrita de memória;
+Sincronização com o restante do sistema.
+Se a instrução ou o dado não estiverem imediatamente acessíveis, o que domina o
+tempo observado não é a operação lógica em si, mas o deslocamento do dado até o
+ponto de uso.
+Essa distinção é central para sistemas ciberfísicos. Em uma aplicação de controle, por
+exemplo, um atraso inesperado causado por acesso à memória pode afetar:
+Resposta a sensor;
+Atualização de atuador;
+Sincronização entre etapas;
+Estabilidade temporal do sistema.
+1.3 O papel da cache
+Cache é uma memória pequena e muito rápida colocada entre a CPU e memórias
+mais lentas. Seu papel é manter perto da CPU os dados e instruções mais usados
+recentemente, reduzindo o número de acessos caros às camadas mais lentas da
+hierarquia.
+Em vez de toda leitura ser resolvida diretamente na memória principal ou na flash, a
+arquitetura tenta reaproveitar blocos já trazidos anteriormente. Isso melhora o
+desempenho quando o software exibe padrões favoráveis de reutilização.
+Conceitos fundamentais:
+Cache hit: o dado requisitado já está na cache.
+Cache miss: o dado não está na cache e precisa ser buscado em memória mais
+lenta.
+Miss penalty: tempo extra gasto para trazer o bloco ausente.
+Stall: parada temporária enquanto a CPU aguarda dados ou instruções.
+Quando um hit ocorre, o custo percebido tende a ser muito pequeno. Quando um miss
+ocorre, a penalidade não é apenas local: ela pode atrasar o fluxo de execução
+subsequente, introduzir variabilidade temporal e reduzir a eficiência global da CPU.
+1.4 Localidade temporal e espacial
+A cache funciona bem quando o programa apresenta padrões de localidade.
+Localidade temporal
+O mesmo dado é reutilizado em pouco tempo. Isso acontece, por exemplo, quando:
+Uma variável é lida repetidamente dentro de um laço;
+Um pequeno conjunto de coeficientes é reaproveitado em um filtro;
+O mesmo trecho de código é chamado diversas vezes em sequência.
+Quando o processador acessa um endereço de memória, a cache guarda uma cópia
+desse dado. Se o código for um laço de repetição, as mesmas variáveis e instruções
+tendem a ser solicitadas repetidamente.
+Do ponto de vista da arquitetura, a ação da cache é manter esse dado "quente" nos
+níveis mais próximos do núcleo, reduzindo o custo de acessos futuros. Em
+arquiteturas mais gerais, isso é discutido em termos de níveis como L1 e L2; no
+contexto didático do ESP32, a ideia principal permanece a mesma: reaproveitar
+rapidamente o que acabou de ser usado.
+Exemplos clássicos de localidade temporal:
+Contadores de laço;
+Variáveis acumuladoras;
+Índices usados sucessivamente em processamento iterativo;
+Instruções de um trecho crítico repetido muitas vezes.
+Localidade espacial
+Dados vizinhos na memória tendem a ser acessados juntos. Isso acontece, por
+exemplo, quando:
+Um vetor é percorrido do início ao fim;
+Uma matriz é acessada na ordem em que foi armazenada;
+Campos próximos de uma estrutura são lidos no mesmo bloco lógico.
+Isso ocorre porque o hardware não busca apenas o byte solicitado. Em geral, ele traz
+um bloco inteiro da memória principal para a cache. Em outras palavras, a arquitetura
+assume que, se a posição x foi acessada, é provável que posições próximas, como
+x+1, x+2 e assim por diante, também sejam necessárias em breve.
+Essa antecipação é uma das razões pelas quais percorrer vetores, arrays e trechos
+sequenciais de código costuma ser muito eficiente. A cache não está apenas reagindo
+ao acesso atual: ela está, de certo modo, explorando uma previsão arquitetural
+baseada no padrão espacial do programa.
+Exemplos clássicos de localidade espacial:
+Percorrer um vetor elemento por elemento;
+Processar uma matriz respeitando a ordem em que foi armazenada;
+Executar instruções sequenciais de um mesmo trecho de programa.
+Esses dois princípios explicam por que alguns programas “parecem naturalmente
+rápidos” enquanto outros, mesmo corretos e semanticamente equivalentes,
+apresentam perdas grandes de desempenho.
+1.4.1 Por que a localidade é crítica na
+arquitetura
+Se um programa tem baixa localidade, o comportamento da cache se torna muito
+menos eficiente. Isso acontece, por exemplo, quando:
+Os acessos à memória ocorrem em posições muito dispersas;
+Ponteiros levam a regiões aleatórias ou pouco contíguas;
+Estruturas encadeadas estão muito espalhadas na memória;
+O programa alterna constantemente entre blocos distantes.
+Nessas condições, ocorre com frequência o que chamamos de cache miss. Quando
+isso acontece, o processador precisa interromper seu fluxo ideal de execução e
+buscar o dado em uma camada mais lenta da hierarquia, como a RAM ou, em certos
+casos, a flash mediada por cache. O resultado é uma queda de desempenho que
+pode ser expressiva.
+Esse ponto é especialmente importante em Arquitetura de Computadores porque
+mostra, de forma concreta, que eficiência não depende apenas do “algoritmo
+abstrato”, mas também do comportamento físico do software sobre a memória.
+Em Sistemas Ciberfísicos, essa discussão se torna ainda mais relevante. Em
+microcontroladores como o ESP32:
+A gestão de memória é limitada e precisa ser intencional;
+O tempo de resposta é parte do comportamento correto do sistema;
+Atrasos provocados por acesso ruim à memória podem comprometer leitura de
+sensores, controle e comunicação;
+Otimizar localidade pode significar não apenas rodar mais rápido, mas responder
+melhor e com mais previsibilidade.
+Por isso, localidade temporal e espacial não devem ser tratadas como curiosidades
+acadêmicas. Elas são conceitos centrais para a escrita de código eficiente,
+especialmente quando o sistema precisa tomar decisões no mundo físico dentro de
+janelas de tempo estreitas.
+1.5 Instruction cache e data cache
+No ESP32, há diferença prática entre:
+Instruction cache: acelera a execução de código armazenado na flash.
+Data cache: melhora leituras e escritas de dados acessados com padrões
+favoráveis.
+Isso importa porque muitos problemas de desempenho não vêm de uma única fonte.
+Um programa pode sofrer, por exemplo:
+Com código muito fragmentado e cheio de desvios, prejudicando a instruction
+cache;
+Com acesso ruim aos dados, prejudicando a data cache;
+Ou com ambas as coisas ao mesmo tempo.
+Desse modo, pensar “cache” como um conceito genérico é útil apenas no começo.
+Conforme a análise evolui, vale perguntar:
+O problema está no fluxo de instruções?
+O problema está nos dados?
+O problema está no conflito entre ambos?
+1.6 Cache, latência e previsibilidade
+Em sistemas convencionais de uso interativo, uma queda de desempenho costuma
+ser percebida como “lentidão”. Em sistemas ciberfísicos, a mesma queda pode se
+manifestar como:
+Atraso de resposta;
+Amostragem irregular;
+Perda de janelas temporais;
+Jitter no comportamento global.
+Por isso, o impacto da cache não deve ser interpretado apenas como ganho ou perda
+de velocidade média. Deve ser visto também como ganho ou perda de
+previsibilidade temporal.
+Se um trecho crítico às vezes encontra tudo na cache e às vezes não, o tempo de
+execução pode variar significativamente entre execuções aparentemente equivalentes.
+Esse fenômeno tem implicações práticas em:
+Controle embarcado;
+Aquisição de sinais;
+Comunicação determinística;
+Resposta a interrupções.
+2. Alinhamento e Organização de Dados
+2.1 O que significa alinhar dados
+A CPU trabalha melhor quando os dados estão organizados em endereços
+compatíveis com seu tamanho natural de acesso. No ESP32, acessos alinhados
+tendem a exigir menos operações internas.
+Em termos arquiteturais, alinhamento é a relação entre o endereço em que um dado
+começa e o tamanho com que a arquitetura prefere acessá-lo. Em uma arquitetura de
+32 bits, por exemplo, leituras e escritas de 4 bytes tendem a ser mais eficientes
+quando começam em endereços múltiplos de 4. Isso não é apenas uma convenção do
+compilador: é uma preferência real do caminho de dados do processador e do
+subsistema de memória.
+Um ponto importante é mudar a forma de enxergar a memória. Para quem está
+começando, ela pode parecer uma fita longa onde um int cabe em qualquer posição.
+Do ponto de vista do processador, porém, a memória funciona mais como uma grade
+organizada em palavras de tamanho fixo, geralmente 4 ou 8 bytes. O barramento de
+dados tem largura definida, e a CPU prefere acessar valores em endereços
+compatíveis com essa largura.
+Quando um dado de 32 bits, por exemplo, começa em um endereço naturalmente
+compatível com sua largura, a arquitetura pode resolvê-lo de forma mais direta.
+Quando o dado cruza fronteiras inconvenientes, o hardware pode precisar:
+Combinar leituras;
+Reposicionar internamente o valor;
+Gastar ciclos adicionais;
+Gerar comportamento menos previsível.
+Em um processador de 32 bits, isso fica fácil de visualizar. Se um int de 4 bytes
+começa no endereço 0, a CPU pode lê-lo com uma única operação. Se esse mesmo
+int começa no endereço 2, o valor fica dividido entre duas palavras de memória.
+Nesse caso, a CPU pode precisar:
+Ler a primeira palavra para obter parte do dado;
+Ler a palavra seguinte para obter o restante;
+Executar operações lógicas, como deslocamento e combinação, para reconstruir
+o valor no registrador.
+Por isso, o que poderia exigir uma leitura direta pode acabar custando várias etapas
+internas. Em algumas arquiteturas esse tipo de acesso gera apenas perda de
+desempenho; em outras, pode até provocar falha de alinhamento.
+Assim, a diferença entre acesso alinhado e desalinhado não deve ser tratada apenas
+como uma curiosidade de baixo nível. Ela ajuda a explicar por que dois trechos de
+código semanticamente equivalentes podem apresentar tempos distintos de execução.
+Em sistemas ciberfísicos, essa distinção é ainda mais importante porque o problema
+não é só perder desempenho médio, mas também introduzir variabilidade temporal em
+trechos que deveriam ser previsíveis.
+Uma forma intuitiva de pensar no problema é imaginar a leitura de um uint32_t. Se
+esse valor começa em um endereço múltiplo de 4, a CPU tende a acessá-lo de forma
+natural. Se ele começa em um endereço deslocado, como +1, parte do valor fica em
+uma região e parte em outra. O hardware então pode precisar reconstruir esse dado a
+partir de mais de um trecho de memória, o que aumenta custo e complexidade interna.
+No contexto do ESP32, os materiais da disciplina já apontam dois fatos relevantes:
+Acessos alinhados em múltiplos de palavra tendem a ser mais eficientes;
+Acessos desalinhados em trechos críticos podem introduzir penalidade de
+performance.
+Isso mostra que alinhamento não é apenas um detalhe de representação. Ele interfere
+em latência, eficiência de acesso e previsibilidade de execução.
+Como regra prática de organização, compiladores costumam seguir o
+autoalinhamento:
+char de 1 byte pode começar em qualquer endereço;
+short de 2 bytes tende a começar em endereços pares;
+int e float de 4 bytes tendem a começar em endereços múltiplos de 4;
+double e long long de 8 bytes tendem a começar em endereços múltiplos de 8.
+2.2 Estruturas de dados não são apenas um
+detalhe de sintaxe
+A ordem dos campos em uma struct pode aumentar ou reduzir:
+Espaços vazios de alinhamento;
+Número de acessos à memória;
+Volume total transferido.
+O ponto central aqui é que a semântica do programa pode permanecer exatamente a
+mesma, mas o layout físico na memória muda. Isso afeta:
+Tamanho total da estrutura;
+Número de bytes transferidos entre memória e cache;
+Quantidade de objetos que cabem em um mesmo bloco;
+Eficiência de percursos sobre vetores dessas estruturas.
+Essa leitura é importante porque é comum enxergar a struct apenas como um
+agrupamento lógico de campos. Do ponto de vista arquitetural, porém, ela também é
+uma decisão sobre como os dados serão posicionados na memória. Portanto, mudar a
+ordem dos campos pode alterar não só o sizeof, mas também o custo real de leitura,
+escrita e transporte desses dados ao longo do sistema.
+2.3 Padding: desperdício ou mecanismo
+necessário?
+O padding é frequentemente visto como desperdício. Essa leitura é incompleta. Em
+muitos casos, o padding existe justamente para preservar alinhamento favorável e
+permitir acessos mais eficientes.
+No contexto de arquitetura de computadores e organização de memória, o padding é a
+inserção de bytes "vazios" entre dados para garantir que cada valor comece em um
+endereço que o processador consiga acessar de forma eficiente. Em outras palavras,
+o padding é uma consequência prática das regras de alinhamento de memória.
+Esse cuidado é necessário porque processadores modernos, como o do ESP32 ou
+CPUs da família x86, não trabalham naturalmente lendo a memória byte por byte em
+todas as situações. Em vez disso, eles preferem acessar palavras de tamanho fixo,
+como 4 ou 8 bytes. Quando um dado de 4 bytes fica "quebrado" entre duas palavras
+de memória, a CPU pode precisar de mais de um acesso, além de operações internas
+adicionais para recompor o valor. Isso aumenta custo, latência e variabilidade
+temporal.
+Considere a seguinte estrutura:
+struct Exemplo {
+char a; // 1 byte
+int b; // 4 bytes
+char c; // 1 byte
+};
+À primeira vista, pode parecer que essa estrutura deveria ocupar apenas 1 + 4 + 1
+= 6 bytes. No entanto, o compilador tende a inserir padding para alinhar corretamente
+o campo int e também para manter a própria estrutura alinhada de forma favorável.
+Campo Tamanho Endereço relativo Papel no layout
+a 1 byte 0 dado real
+padding 3 bytes 1, 2, 3 alinhamento antes de b
+b 4 bytes 4, 5, 6, 7 dado real alinhado
+c 1 byte 8 dado real
+padding 3 bytes 9, 10, 11 alinhamento da estrutura
+Nesse caso, o tamanho total real tende a ser 12 bytes.
+Esse exemplo ajuda a perceber que o padding tem relação direta com desempenho e
+cache:
+uso de espaço: em sistemas embarcados com pouca RAM, padding excessivo
+pode reduzir a quantidade de estruturas que cabem em memória;
+eficiência de acesso: sem padding, a CPU pode ter de lidar com acessos
+desalinhados, o que em algumas arquiteturas gera exceção e em outras apenas
+torna a execução mais lenta;
+localidade e cache: estruturas maiores ocupam mais espaço em cache, o que
+pode reduzir a quantidade de elementos úteis por bloco carregado;
+false sharing: em sistemas multicore, alinhar ou separar dados também pode
+evitar que dois núcleos invalidem desnecessariamente a mesma linha de cache.
+Em outras palavras, o compilador está aceitando um certo "desperdício" de memória
+para preservar velocidade de acesso. Esse trade-off aparece em praticamente toda
+arquitetura moderna: um pouco mais de espaço pode representar muito menos custo
+para ler e escrever dados com frequência.
+Ao analisar o layout de uma estrutura, evite dois extremos:
+Achar que todo byte “sobrando” é erro de projeto;
+Achar que remover todo padding sempre melhora o programa.
+O correto é perguntar:
+Esse espaço extra está ajudando a CPU?
+A economia de memória compensa a piora no acesso?
+A estrutura é usada em grande quantidade?
+Ela é crítica para throughput, latência ou ambos?
+2.4 packed: quando usar e quando evitar
+packed reduz espaços internos na estrutura, mas pode introduzir custo extra de
+acesso. Assim, pode economizar memória e piorar desempenho ao mesmo tempo.
+Essa é uma ferramenta útil quando o layout em bytes precisa ser exatamente igual ao
+de um protocolo de rede, de um arquivo binário ou de um periférico. Nesses casos, o
+espaço é crítico e o formato não pode ser alterado livremente.
+Esse recurso faz mais sentido quando:
+É necessário obedecer a um formato binário rígido;
+Há interoperabilidade com protocolo de comunicação;
+A prioridade é o layout exato em bytes;
+A estrutura não é acessada intensivamente em laços críticos.
+Pode ser inadequado quando:
+A estrutura é muito acessada;
+A CPU lerá campos desalinhados repetidamente;
+A economia de bytes é pequena diante do custo temporal;
+O objetivo principal do sistema é desempenho previsível.
+Esse é o trade-off central: com __attribute__((packed)), a estrutura pode cair para
+o tamanho mínimo possível, mas o processador pode ficar mais lento sempre que
+precisar acessar aqueles campos. Em outras palavras, você economiza memória e
+pode perder desempenho.
+2.5 aligned e controle explícito
+aligned permite forçar o posicionamento de dados em fronteiras convenientes para a
+arquitetura, o que pode ajudar buffers críticos e estruturas acessadas com alta
+frequência.
+Seu uso é particularmente relevante quando:
+Se quer garantir alinhamento para acesso vetorial ou bloco;
+A estrutura será compartilhada com periféricos;
+O buffer precisa ser favorável para DMA;
+O programador deseja reduzir ambiguidades de layout.
+2.6 IRAM_ATTR e caminho das instruções
+IRAM_ATTR é usado para colocar funções críticas em memória de instrução rápida,
+reduzindo dependência da flash e variabilidade temporal.
+Esse ponto conecta organização de código e organização de dados. Às vezes o
+gargalo não está no dado, mas no custo de buscar a instrução. Mover funções críticas
+para IRAM pode:
+Reduzir tempo médio de execução;
+Reduzir variabilidade entre execuções;
+Melhorar resposta em trechos sensíveis;
+Aumentar previsibilidade em rotinas de interrupção.
+2.7 Prefetching e programação amigável à
+arquitetura
+O programador também favorece prefetching ao:
+Usar laços sequenciais;
+Evitar saltos desnecessários;
+Manter dados correlatos próximos.
+Aqui aparece uma ideia muito importante para a disciplina: o bom programador de
+sistemas ciberfísicos não programa “contra” a arquitetura, mas “com” a arquitetura.
+Isso significa organizar estruturas, laços e blocos de código de modo a reduzir o custo
+invisível do transporte de informação.
+3. DMA como Estratégia de
+Desempenho
+3.1 O que o DMA resolve
+DMA (Direct Memory Access) permite que periféricos ou controladores especializados
+movimentem dados entre memória e dispositivos sem que a CPU precise copiar byte
+por byte.
+Sem DMA:
+CPU lê o dado;
+CPU escreve o dado;
+CPU repete esse processo para todo o bloco.
+Com DMA:
+CPU configura a transferência;
+Controlador DMA executa a movimentação;
+CPU é notificada ao final.
+O ganho aqui não deve ser interpretado apenas como “mais velocidade”. Em muitos
+casos, o maior valor do DMA é:
+Liberar a CPU;
+Permitir sobreposição entre trabalho e transferência;
+Reduzir desperdício de ciclos em tarefas repetitivas;
+Melhorar a capacidade de resposta global do sistema.
+3.2 Barramento compartilhado e arbitragem
+O barramento é compartilhado por CPU, memória, periféricos e DMA. Quando vários
+agentes disputam acesso, o sistema precisa arbitrar o uso do barramento.
+Isso significa que DMA não é mágica. Ele não cria banda infinita. Em vez disso, altera
+a forma como o trabalho é distribuído entre:
+Computação;
+Controle;
+Transporte de dados;
+Sincronização.
+Por isso, a pergunta mais útil não é “DMA é melhor do que CPU?”, mas:
+Em que tipo de transferência o DMA melhora o sistema?
+Qual recurso estava sendo mais pressionado?
+A limitação estava na CPU, no barramento ou no periférico?
+3.3 Casos típicos de uso
+DMA é especialmente útil em:
+Áudio via I2S;
+Recepção e transmissão SPI;
+Comunicação UART em blocos;
+Captura de dados de sensores com taxa elevada.
+Em todos esses cenários, há um padrão comum: muito dado precisa se mover, e a
+CPU tende a ser mal aproveitada se ficar apenas servindo como copiadora.
+3.4 Restrições de memória para DMA
+Nem toda memória é adequada para DMA. No ESP32, é comum reservar buffers em
+regiões explicitamente compatíveis com DMA, usando mecanismos de alocação
+apropriados para esse tipo de acesso.
+Esse detalhe é importante porque reforça uma ideia-chave da disciplina: o tipo de
+memória importa. Não basta alocar “qualquer buffer”. A compatibilidade com DMA
+depende de características concretas da região de memória.
+3.5 Custos ocultos do DMA
+DMA pode melhorar throughput e reduzir a ocupação da CPU, mas traz novos
+cuidados:
+Latência de configuração;
+Interrupções de conclusão;
+Tamanho ideal de buffer;
+Competição por barramento.
+Além disso, surge um custo cognitivo para o programador:
+Preparar buffers corretamente;
+Sincronizar início e fim da operação;
+Lidar com periféricos;
+Depurar fluxo assíncrono.
+Portanto, DMA não deve ser visto como “a solução sempre superior”, mas como uma
+estratégia que vale a pena quando a natureza do problema justifica sua complexidade.
+4. Throughput de Transferência e
+Ocupação da CPU
+4.1 Medir mais do que tempo bruto
+Ao avaliar DMA, não basta observar apenas o tempo total da cópia. Também é
+necessário medir:
+throughput efetivo;
+Tempo de CPU consumido;
+Quantidade de interrupções;
+Impacto sobre outras tarefas;
+Latência de configuração.
+Essa mudança de perspectiva é central para a disciplina. Em sistemas ciberfísicos,
+uma solução pode ser preferível não porque terminou ligeiramente antes, mas porque
+deixou a CPU disponível para:
+Monitorar sensores;
+Reagir a eventos;
+Atualizar controle;
+Manter previsibilidade em outras partes da aplicação.
+4.2 Transferências em burst
+Transferências em burst movem blocos consecutivos em sequência. Isso costuma
+melhorar a eficiência porque reduz a sobrecarga por byte transferido e aproveita
+melhor o barramento.
+Esse conceito ajuda você a perceber que não se transfere “byte por byte no vácuo”.
+Sempre existe uma granularidade operacional que influencia:
+Eficiência de transporte;
+Número de eventos de controle;
+Custo de sincronização;
+Latência percebida por bloco.
+4.3 O papel do tamanho do buffer
+Buffers pequenos:
+Menor latência por bloco;
+Mais interrupções;
+Maior carga de controle.
+Buffers grandes:
+Melhor throughput;
+Menos interrupções;
+Maior latência para obter o bloco completo.
+Esse trade-off é um dos pontos mais ricos da aula, porque conecta teoria e prática de
+forma imediata. Não existe tamanho universalmente ideal. A escolha depende de:
+Volume de dados;
+Urgência do processamento;
+Sensibilidade a latência;
+Capacidade da CPU;
+Comportamento do periférico.
+4.4 memcpy como comparação intermediária
+Entre o laço manual e o DMA, memcpy é uma referência útil. Ela costuma representar
+uma implementação de cópia mais otimizada do que a escrita manual, mas ainda
+dependente da CPU.
+Essa comparação é útil porque separa duas discussões:
+1. Como copiar melhor com CPU?
+2. Quando deixar de copiar com CPU?
+4.5 Throughput versus latência
+Um erro conceitual recorrente é imaginar que throughput alto implica latência baixa.
+Isso não é necessariamente verdade.
+Exemplos:
+Um sistema pode transferir muito dado por segundo, mas entregar cada bloco
+com atraso alto;
+Um sistema pode responder rapidamente a blocos pequenos, mas ter vazão
+global baixa;
+Uma solução pode parecer ótima em benchmark sintético e ruim em cenário
+interativo.
+Ao analisar o resultado, vale fazer perguntas como:
+Qual métrica importa mais neste sistema?
+O que é “rápido” do ponto de vista do usuário ou da planta física?
+Vale mais concluir tudo cedo ou responder cedo ao primeiro evento?--
+Encerramento
+Este bloco mostra que o desempenho em sistemas embarcados começa pela forma
+como memória, cache e barramento são usados. Antes de pensar em otimizar código
+de forma agressiva, você precisa entender:
+Como os dados são organizados;
+Como a ordem de acesso interfere na cache;
+Como o alinhamento altera custo de leitura e escrita;
+Quando a CPU está sendo desperdiçada em cópias;
+Por que o DMA pode liberar recursos valiosos do sistema.
+Mais do que decorar termos como cache miss, aligned ou DMA, o objetivo é construir
+um raciocínio arquitetural. Ao final desta etapa, você deve ser capaz de olhar para um
+problema e perguntar:
+Onde os dados estão?
+Como estão organizados?
+Quem está movendo os dados?
+Qual recurso está sendo mais pressionado?
+A latência observada é de computação ou de espera?
+Referências
+1. ESP-IDF Programming Guide. Speed Optimization.
+2. ESP-IDF Programming Guide. Memory Types.
+3. ESP-IDF Programming Guide. Heap Memory Allocation.
+4. ESP32 Technical Reference Manual. Espressif Systems.
+5. Materiais da disciplina sobre cache, DMA e transferência de dados.

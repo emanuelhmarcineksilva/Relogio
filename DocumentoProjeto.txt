@@ -1,0 +1,356 @@
+
+PONTIFÍCIA UNIVERSIDADE CATÓLICA DO PARANÁ
+ENGENHARIA DE SOFTWARE
+PERFORMANCE EM SISTEMAS CIBERFÍSICOS 
+
+
+EMANUEL HENRIQUE MARCINEK SILVA
+GABRIEL MOLETA ROSSI
+JULIO MIGUEL CZAPLINSKI KUCHUMINSKI
+MURILO BIZZ
+MURILO PRIZIBELA
+OLAVO
+
+
+
+
+
+
+
+
+
+
+
+Chronos Obsidian
+Relógio inteligente
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+PINHAIS
+2026
+EMANUEL HENRIQUE MARCINEK SILVA
+GABRIEL MOLETA ROSSI
+JULIO MIGUEL CZAPLINSKI KUCHUMINSKI
+MURILO BIZZ
+MURILO PRIZIBELA
+OLAVO
+
+
+
+
+Chronos Obsidian
+Relógio inteligente
+
+
+
+
+
+
+Trabalho de desenvolvimento de um sistema embarcado baseado em ESP32, apresentado para o curso de Engenharia de Software da Pontifícia Universidade Católica do Paraná, como requisito parcial para aprovação na disciplina de Performance em Sistemas Ciberfísicos.
+
+Orientador: Fabio Garcez Bettio
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+PINHAIS
+2026
+
+
+	
+Resumo
+Este trabalho apresenta o desenvolvimento e a validação de um relógio inteligente baseado em ESP32, concebido como um sistema ciberfísico com integração entre hardware, firmware e interface web embarcada. O objetivo principal foi implementar uma solução funcional capaz de exibir hora local em display OLED, gerenciar alarmes configuráveis com sinalização sonora, coletar dados ambientais por sensor DHT22, sincronizar horário por RTC DS3231/NTP, e disponibilizar monitoramento de desempenho em tempo real por navegador. A metodologia adotada foi incremental e modular, com etapas de configuração de periféricos, implementação de serviços de comunicação, construção da máquina de estados local no display, exposição de APIs HTTP e consolidação de mecanismos de persistência em SPIFFS. Também foram aplicadas técnicas de observabilidade, incluindo logs com níveis de severidade, histórico de métricas e rotinas de backup/restauração de dados. Entre os principais resultados, o sistema alcançou operação estável com interface web para ajuste de hora, alarmes, parâmetros de coleta e troca de rede Wi-Fi sem necessidade de regravação do firmware. O projeto apresentou ainda monitoramento de tempos de execução (loop, leitura de RTC, leitura de botões, atualização de display e requisições de clima), além de indicadores de heap, stack, uso de flash e quantidade de tasks do sistema. Como conclusão, a solução atendeu aos requisitos funcionais centrais de integração ciberfísica, configurabilidade remota e observabilidade, demonstrando aplicabilidade prática dos conceitos da disciplina. Itens não implementados: [em desenvolvimento {fechar os gaps com plano de 3 sprints: sprint 1 energia+RTC_DATA_ATTR, sprint 2 multitarefa dual-core, sprint 3 interrupções e changelog com métricas antes/depois em micros()}].
+Palavras-chave: Sistemas Ciberfísicos. ESP32. Performance. Internet das Coisas. Monitoramento. Firmware Embarcado.
+Abstract
+This work presents the development and validation of a smart clock based on ESP32, designed as a cyber-physical system integrating hardware, firmware, and an embedded web interface. The main objective was to implement a functional solution capable of displaying local time on an OLED screen, managing configurable alarms with audio signaling, collecting environmental data through a DHT22 sensor, synchronizing time using DS3231 RTC/NTP, and providing real-time performance monitoring through a web browser. The adopted methodology was incremental and modular, with stages for peripheral setup, communication service implementation, local state-machine design for the display, HTTP API exposure, and SPIFFS-based data persistence mechanisms. Observability techniques were also applied, including severity-based logging, metric history, and backup/restore routines. As main results, the system achieved stable operation with a web interface for time/alarm configuration, sensor collection parameters, and Wi-Fi network update without firmware reflashing. The project also provided execution-time monitoring (main loop, RTC read, button read, display update, and weather API requests), in addition to heap, stack, flash usage and system task indicators. In conclusion, the solution met the core functional requirements of cyber-physical integration, remote configurability, and observability, demonstrating practical applicability of course concepts. Not implemented items: [em desenvolvimento {implementation roadmap driven by RA classes: low-power modes, RTOS task partitioning, hardware interrupts, and measured regression checks}].
+Keywords: Cyber-Physical Systems. ESP32. Performance. Internet of Things. Monitoring. Embedded Firmware.
+Sumário
+1 Introdução	4
+2 Objetivo	4
+2.1 Objetivo Geral	4
+2.2 Objetivos Específicos	5
+3 Requisitos do Sistema	5
+3.1 Requisitos Funcionais	5
+3.2 Requisitos Não Funcionais	6
+3.3 Requisitos de Hardware	6
+4 Fundamentação Teórica	7
+4.1 Sistemas Ciberfísicos	7
+4.2 Concorrência e Paralelismo em Sistemas Embarcados	7
+4.3 Gerenciamento de Memória e Desempenho	7
+4.4 Sistemas Operacionais Embarcados e Uso de RTOS	7
+4.5 Gerenciamento de Energia em Dispositivos IoT	7
+4.6 Monitoramento, Logging e Observabilidade em Sistemas Computacionais	7
+5 Metodologia	8
+5.1 Planejamento do Sistema	8
+5.2 Desenvolvimento Modular do Firmware	8
+5.3 Integração Progressiva de Sensores e Atuadores	8
+5.4 Desenvolvimento da Interface Web	8
+5.5 Execução de Testes Contínuos	8
+5.6 Avaliação de Desempenho	8
+6 Desenvolvimento do Sistema	8
+6.1 Arquitetura Geral do Sistema	8
+6.2 Organização do Firmware	9
+6.3 Estrutura das Tasks	9
+6.4 Uso de Interrupções de Hardware	10
+6.5 Estratégias de Gerenciamento de Energia	10
+6.6 Estrutura e Organização da Interface Web	10
+6.7 Mecanismos de Persistência de Dados	10
+7 Testes e Validação	11
+7.1 Testes Isolados	11
+7.1.1 Testes Individuais dos Sensores	11
+7.1.2 Testes Individuais dos Atuadores	11
+7.1.3 Testes Isolados dos Módulos de Software	11
+7.1.4 Validação Funcional de Cada Componente	11
+7.2 Testes de Integração	11
+7.2.1 Integração entre Sensores, Atuadores e Firmware	11
+7.2.2 Integração entre Firmware e Interface Web	12
+7.2.3 Validação da Persistência dos Dados	12
+7.2.4 Avaliação de Desempenho e Consumo de Energia	12
+8 Resultados	12
+9 Conclusão	12
+Referências	13
+Apêndices	13
+Apêndice A - Esquema Elétrico / Diagrama de Ligação	13
+Apêndice B - Código-Fonte Completo	14
+Apêndice C - Manual de Usuário	14
+Apêndice D - Evidências Fotográficas	14
+
+1 Introdução
+Com a popularização da Internet das Coisas (IoT), sistemas embarcados passaram a desempenhar papel central em soluções ciberfísicas capazes de integrar sensores, atuadores, comunicação em rede e interfaces de monitoramento. Nesse contexto, o uso do ESP32 se destaca por combinar conectividade Wi-Fi, capacidade de processamento e ecossistema de desenvolvimento consolidado. Este projeto foi motivado pela necessidade de construir um sistema real e funcional que extrapolasse a lógica de um relógio digital simples, incorporando observabilidade, persistência e configuração remota.
+O problema abordado consiste em projetar um dispositivo compacto que, além de exibir hora e alarmes, opere como plataforma de monitoramento de performance do próprio firmware, com dados acessíveis em interface web embarcada. A relevância acadêmica do tema está em aplicar conceitos de sistemas ciberfísicos, desempenho, gerenciamento de memória e comunicação entre camadas (hardware, firmware e software de interface).
+Como solução, foi desenvolvido um relógio inteligente com RTC DS3231, display OLED, sensor DHT22 e saída de áudio I2S via MAX98357A. O firmware implementa máquina de estados para interação local por botões, servidor HTTP para configuração e monitoramento remoto, e armazenamento de configurações/históricos em SPIFFS. Este documento está organizado em objetivos, requisitos, fundamentação teórica, metodologia, desenvolvimento, testes, resultados e conclusões.
+2 Objetivo
+2.1 Objetivo Geral
+Desenvolver, implementar e validar um sistema ciberfísico embarcado com ESP32, capaz de integrar relógio em tempo real, monitoramento ambiental, alarmes sonoros, interface web de configuração e monitoramento de desempenho com persistência de dados.
+2.2 Objetivos Específicos
+(a) Integrar RTC DS3231, display OLED SSD1306, sensor DHT22, módulo I2S MAX98357A e botões físicos ao ESP32.
+(b) Implementar firmware modular em C++ com boot por estados e loop principal não bloqueante.
+(c) Disponibilizar interface web embarcada para ajuste de hora, alarmes, parâmetros operacionais e troca de Wi-Fi.
+(d) Implementar sistema de logs com níveis de severidade e visualização remota.
+(e) Coletar e exibir métricas de desempenho (tempo de funções, heap, stack, flash, PSRAM e estado de conectividade).
+(f) Persistir configurações e históricos na flash com rotinas de backup e restauração.
+3 Requisitos do Sistema //////////////// Atenção o professor pediu para colocar os requisitos antes do topico 6 (desenvolvimento) , depois do 5 
+3.1 Requisitos Funcionais
+RF01 - Interface Web Embarcada: Implementado por servidor HTTP no ESP32 com HTML/CSS/JS embarcados em PROGMEM.
+RF02 - Guia Única de Performance: Implementado em aba "Monitoramento" com 7 gráficos em tempo real e indicadores de CPU, heap, stack, flash, PSRAM, tasks, WiFi/AP.
+RF03 - Gráficos de Performance: Implementado na guia "Gráficos" via endpoint "/api/perf" (JSON) com renderização em canvas HTML5.
+RF04 - Sistema de Logs: Implementado com buffer circular (4KB), níveis [INFO]/[WARN]/[ERROR], visualização serial/web (abas "Logs" e "Serial") e backup em SPIFFS (/log_backup.txt).
+RF05 - Configuração via Web: Implementado em rotas para hora, alarmes, parâmetros de leitura DHT/backup/clima e troca de credenciais Wi-Fi (com reconexão automática).
+RF06 - Guia Sobre: Implementado com identificação do projeto, versão do firmware (v3.1.0), integrantes, link GitHub, parâmetros configuráveis. [em desenvolvimento {adicionar email da equipe, hash do commit; mostrar também dados de placa/módulo, uptime, macAddress WiFi para rastreabilidade}]
+RF07 - Changelog: [em desenvolvimento {criar arquivo /changelog.txt no SPIFFS com versão,data,mudança; endpoint /api/changelog e aba dedicada na web}]
+3.2 Requisitos Não Funcionais
+RNF01 - Persistência: Implementado com histórico circular de 5 minutos (60 amostras x 5s cada). [em desenvolvimento {expandir para 24h: amostragem a cada 300s com 288 pontos por métrica; salvar em arquivo binário rotativo com cabeçalho CRC e restauração segura no boot}]
+RNF02 - Concorrência/Não bloqueante: Atendido majoritariamente no loop principal (sem uso de delay), com processamento por janelas de tempo e máquina de estados. Tempo típico: 5-15ms por iteração.
+RNF03 - Multitarefa: [em desenvolvimento {separar em tasks pinadas por core: TaskAquisicao(Core0), TaskWebUI(Core1), TaskAudio(Core1), TaskPersistencia(baixa prioridade); comunicação por queue/notificação direta para reduzir overhead}]
+RNF04 - Interrupções: [em desenvolvimento {migrar botões para GPIO interrupt + debounce por timer (esp_timer) e fila de eventos; usar ISR curta apenas para sinalização e tratar lógica fora da ISR}]
+RNF05 - Gerenciamento de Energia: [em desenvolvimento {aplicar estratégia híbrida: Light Sleep quando ocioso com wake por timer/botão e Deep Sleep opcional no modo noturno; persistir estado em RTC_DATA_ATTR e comparar latência/consumo}]
+RNF06 - Linguagem: Atendido (C++ para Arduino/ESP32).
+RNF07 - Versionamento: Atendido conforme repositório informado: https://github.com/emanuelhmarcineksilva/Relogio.
+3.3 Requisitos de Hardware
+RH01 - Microcontrolador: ESP32.
+RH02 - Sensores: DHT22 (GPIO 23 com pull-up) e RTC DS3231 (I2C).
+RH03 - Atuadores: Display OLED SSD1306 128x64 (I2C), LCD 16x2 (I2C 0x27), áudio I2S com MAX98357A + alto-falante.
+RH04 - Acondicionamento: Caixa em EVA preto fosco de 1 cm de espessura.
+4 Fundamentação Teórica
+4.1 Sistemas Ciberfísicos
+Sistemas ciberfísicos integram processos computacionais e componentes físicos em malhas de monitoramento e controle. Neste projeto, sensores (DHT22/RTC), atuadores (OLED/áudio), conectividade (Wi-Fi) e software embarcado compõem uma arquitetura CPS orientada a observabilidade local e remota.
+4.2 Concorrência e Paralelismo em Sistemas Embarcados //////////////////////////// melhorar descrição com nosso projeto
+Em sistemas embarcados, concorrência ocorre quando múltiplas atividades compartilham tempo de CPU. Mesmo com loop principal único na aplicação, o ambiente ESP32 opera sobre FreeRTOS e pilhas de rede em paralelo, exigindo desenho não bloqueante para manter responsividade da interface e estabilidade temporal.
+4.3 Gerenciamento de Memória e Desempenho ////////////////////// melhorar
+O uso de PROGMEM para melodias e HTML reduz pressão sobre RAM. A coleta de heap mínimo/atual, stack disponível e tempos de execução por função permite detectar gargalos e regressão de desempenho ao longo da evolução do firmware.
+4.4 Sistemas Operacionais Embarcados e Uso de RTOS   /////////// tbm
+O ESP32 utiliza FreeRTOS como base do runtime. Embora a aplicação não instancie tasks customizadas, recursos do RTOS são utilizados indiretamente pelo framework (rede, temporização e agendamento), com métricas de runtime expostas na interface.
+4.5 Gerenciamento de Energia em Dispositivos IoT ////////////// melhorar
+Técnicas como modem sleep, light sleep e deep sleep são relevantes para autonomia energética. No estado atual, o firmware prioriza disponibilidade e latência de interface, sem aplicar modos agressivos de economia, caracterizando oportunidade clara de evolução.
+4.6 Monitoramento, Logging e Observabilidade em Sistemas Computacionais /// melhorar especificando o buffer
+Observabilidade envolve registrar estados internos por logs, métricas e eventos. O sistema implementa logs em buffer circular, exportação de dados, histórico de performance e APIs para consulta remota, permitindo análise operacional sem acesso físico ao microcontrolador.
+5 Metodologia
+5.1 Planejamento do Sistema /////////// Escrever direito, o que se espera e não esse generico
+Foi definido escopo de relógio inteligente com foco em integração ciberfísica, configuração web e monitoramento de performance. A seleção de componentes privilegiou disponibilidade, baixo custo e compatibilidade com ESP32.
+5.2 Desenvolvimento Modular do Firmware ////////////// da uma olhada melhor
+O firmware foi estruturado em blocos funcionais: inicialização por etapas (boot state machine), áudio I2S, sensores, log, persistência SPIFFS, servidor web e controle de interface local por estados.
+5.3 Integração Progressiva de Sensores e Atuadores // falar melhor
+A integração ocorreu de forma incremental: display e RTC, depois Wi-Fi/API, em seguida DHT22, alarmes sonoros I2S e por fim persistência e dashboard web.
+5.4 Desenvolvimento da Interface Web
+A interface foi embarcada no próprio firmware por string HTML com CSS e JavaScript nativos, sem dependências externas. A comunicação ocorre por endpoints REST simples (GET/POST) retornando texto e JSON.
+5.5 Execução de Testes Contínuos  ///////////// Colocar resultado de testes e problemas enfrentados
+Foram realizados testes funcionais a cada módulo adicionado: conectividade Wi-Fi, atualização de horário, acionamento de alarmes, renderização no display, leitura DHT e consistência de rotas web.
+5.6 Avaliação de Desempenho //////// melhorar e almentar o texto
+O firmware mede tempos de execução em microssegundos para rotinas críticas, uso de heap/stack e telemetria de armazenamento, com amostragem periódica e histórico para visualização gráfica.
+6 Desenvolvimento do Sistema
+6.1 Arquitetura Geral do Sistema
+Arquitetura em camadas:
+- Camada física: ESP32 + RTC DS3231 + DHT22 + OLED + MAX98357A + botões.
+- Camada de firmware: boot, máquina de estados, log, áudio, coleta de sensores, persistência, servidor HTTP.
+- Camada de interface: página web com abas Principal, Monitoramento e Sobre.
+- Camada de dados: SPIFFS para configurações e históricos.
+6.2 Organização do Firmware
+O código central está no arquivo relogio5.ino (versão 3.1.0), contendo:
+- Definições de hardware: OLED SSD1306 (I2C), LCD 16x2 (I2C 0x27), RTC DS3231, DHT22, MAX98357A (I2S), botões GPIO4 e GPIO18.
+- Estruturas de dados: Alarme (hora, minuto, ativo, melodia, jaTocou), Nota (freq, durMs), buffers de log circular, histórico de performance.
+- Módulos de persistência: WiFi (SPIFFS), parâmetros de configuração, logs e histórico de performance (binário).
+- Máquina de estados: RELOGIO, MENU, LISTA_ALARMES, DETALHE_ALARME, EDITAR_ALARME_H, EDITAR_ALARME_M, ESCOLHER_MELODIA, HORA, EDITAR_HORA_M.
+- Rotas HTTP para consulta/controle: /api/log, /api/alarmes, /api/hora, /api/alarme, /api/alarme/toggle, /api/clima, /api/serial, /api/flash, /api/config, /api/config/set, /api/wifi/set, /api/perf, /api/salvar, /api/download_perf, /api/upload_perf.
+- Loop principal não bloqueante: DHT periódico (5s padrão), servidor web, player I2S, debounce de botões, RTC, alarmes, OLED, métricas.
+Bibliotecas principais: WiFi, WebServer, HTTPClient, ArduinoJson, Wire, Adafruit_SSD1306, RTClib, SPIFFS, DHT, LiquidCrystal_I2C, esp_timer, driver/i2s.
+6.3 Estrutura das Tasks
+[em desenvolvimento {modelo sugerido RA02: Produtor sensores em Core0 (periódico), Consumidor display/web em Core1, Áudio em task dedicada; filas de 1 elemento (xQueueOverwrite) para dashboard e notificação direta para eventos de alarme}]
+Tabela de execução lógica (ciclo principal):
+- Leitura DHT (periódica por cfgDhtIntervaloMs)
+- Atendimento HTTP (server.handleClient em cada iteração)
+- Reprodução de áudio em passos não bloqueantes
+- Leitura de botões com debounce
+- Leitura RTC e lógica de alarmes
+- Atualização condicional do display
+- Coleta de métricas e backup periódico
+6.4 Uso de Interrupções de Hardware
+[em desenvolvimento {usar attachInterrupt nos botões em borda de descida, registrar timestamp e enviar evento para fila; substituir polling para reduzir latência de clique e variação temporal do loop}]
+6.5 Estratégias de Gerenciamento de Energia
+[em desenvolvimento {incluir DVFS dinâmico (240/160/80 MHz) conforme carga, Light Sleep em janelas sem alarme tocando, e Deep Sleep com wake por RTC quando sem interação prolongada}]
+6.6 Estrutura e Organização da Interface Web
+A interface contém três abas principais:
+- Principal: Relógio digital em tempo real, ajuste de hora, gerenciamento dos 3 alarmes (hora, minuto, melodia, on/off), temperatura local (DHT22), umidade local (DHT22) e previsão de clima da API.
+- Monitoramento: 4 sub-abas (Logs, Serial, Flash, Gráficos) com visualização de eventos, ring buffer de logs, backup da flash, download/upload de histórico de performance, e 7 gráficos em tempo real.
+- Sobre: Identificação do projeto (v3.1.0), integrantes, link GitHub, campos de configuração (intervalos DHT, clima, backup), e troca de credenciais WiFi.
+Endpoints principais:
+  GET  /                        → Página HTML + CSS + JavaScript (embarcado em PROGMEM)
+  GET  /api/log                 → Log em texto (ring buffer)
+  GET  /api/alarmes             → JSON com alarmes, tempos, clima, uptime
+  GET  /api/hora                → Ajusta RTC (parâmetros h, m)
+  GET  /api/alarme              → Edita alarme (parâmetros id, h, m, mel)
+  GET  /api/alarme/toggle       → Liga/desliga alarme (parâmetro id)
+  GET  /api/clima               → Força atualização do clima
+  GET  /api/serial              → Log serial (mesmo do /api/log)
+  GET  /api/flash               → Log salvo em SPIFFS
+  GET  /api/config              → Retorna parâmetros (JSON)
+  GET  /api/config/set          → Salva parâmetros (query: dht, clima, backup em ms)
+  GET  /api/wifi/set            → Troca WiFi e reconecta (query: ssid, pass)
+  GET  /api/perf                → Histórico de performance (JSON com 7 séries)
+  GET  /api/salvar              → Força backup completo na flash
+  GET  /api/download_perf       → Exporta histórico em formato texto (CSV-like)
+  POST /api/upload_perf         → Importa histórico de arquivo texto
+6.7 Mecanismos de Persistência de Dados
+Persistência em SPIFFS (flash):
+- /wifi_config.txt: SSID (linha 1) e senha (linha 2) em texto simples.
+- /config_params.txt: Três valores em ms (DHT intervalo, Clima intervalo, Backup intervalo) separados por newline.
+- /log_backup.txt: Snapshot de estado incluindo timestamp, alarmes (hora, minuto, status), temperatura, heap e uptime.
+- /perf_hist.bin: Histórico binário de 7 séries de 60 amostras (uint32_t cada) com estrutura: [array PERF_FUNCOES][PERF_HIST_SIZE], posição atual, flag de full.
+Suporte adicional para exportação/importação textual do histórico de performance via download/upload de backup (endpoints /api/download_perf e /api/upload_perf).
+Amostragem: 1 ponto a cada 5 segundos (PERF_SAMPLE_MS = 5000). Com 60 amostras, total = 300 segundos = 5 minutos de histórico.
+Backup automático: Executado a cada 2 horas (padrão configurável via /api/config/set) ou sob demanda (/api/salvar).
+7 Testes e Validação
+7.1 Testes Isolados
+7.1.1 Testes Individuais dos Sensores
+- RTC DS3231: leitura contínua de hora e ajuste por NTP/web validado.
+- DHT22: leitura periódica de temperatura/umidade; tratamento de falha com log quando leitura inválida.
+7.1.2 Testes Individuais dos Atuadores
+- OLED SSD1306: Renderização correta de hora, menus e estados de alarme com ícones de clima (neve, ameno, quente, nuvem baseado em temperatura). /////////// Corrigir icones mais tarde
+- LCD 16x2: Exibição de hora e temperatura local (DHT) na linha 1, IP ou AP na linha 2.
+- Áudio I2S: Reprodução de 5 melodias (Aurora, Sino, Despertar, Fur Elise, Estrela) por notas em buffer PCM com controle de disparo/silenciamento e volume moderado.
+7.1.3 Testes Isolados dos Módulos de Software
+- Servidor web: validação de rotas GET/POST e retorno JSON/texto.
+- Persistência: gravação/leitura de arquivos SPIFFS em reinicialização.
+- Logging: escrita em ring buffer e consulta remota.
+7.1.4 Validação Funcional de Cada Componente
+Todos os componentes nucleares (RTC, display, alarmes, web, persistência e clima) apresentaram funcionamento integrado conforme escopo definido para a versão atual.
+7.2 Testes de Integração
+7.2.1 Integração entre Sensores, Atuadores e Firmware
+As leituras de sensores alimentam tanto display local quanto interface web; alarmes acionam áudio I2S e podem ser silenciados por botão.
+7.2.2 Integração entre Firmware e Interface Web
+Dados de runtime são exibidos em tempo real e comandos de configuração (hora, alarmes, Wi-Fi e parâmetros) são aplicados dinamicamente.
+7.2.3 Validação da Persistência dos Dados
+Configurações de rede e parâmetros persistem entre reinicializações. Histórico de performance pode ser salvo/restaurado via flash e backup textual.
+7.2.4 Avaliação de Desempenho e Consumo de Energia
+Desempenho: monitorado por tempos de funções, CPU estimada, heap/stack e recursos de armazenamento.
+Energia: [em desenvolvimento {medir corrente em 3 cenários (ativo, light sleep, deep sleep), calcular mAh/dia e registrar na interface para comparação objetiva}]
+8 Resultados
+Os resultados indicam que o sistema atingiu os objetivos centrais de um CPS funcional: integração de hardware heterogêneo (OLED, LCD, DHT22, RTC, I2S, botões), firmware com monitoramento interno e interface web embarcada para operação e configuração. O dispositivo manteve operação contínua com sincronização de horário, gerenciamento de três alarmes, aquisição de temperatura/umidade local via DHT22 e consulta de clima externo por API. A camada de observabilidade permitiu diagnóstico operacional por logs e métricas, com visualização temporal em gráficos.
+Métricas coletadas (7 séries em histórico circular de 5 minutos):
+  [0] tempoLoopUs: Tempo total do ciclo principal (ms)
+  [1] tempoPegarClimaUs: Tempo de requisição HTTP (ms)
+  [2] tempoRtcNowUs: Tempo de leitura do RTC via I2C (ms)
+  [3] tempoLeituraBotoesUs: Tempo de debounce dos botões (ms)
+  [4] dhtTemperature: Temperatura medida pelo DHT22 (°C x10, inteiro)
+  [5] tempoAtualizarDisplayUs: Tempo de redesenho do OLED (ms)
+  [6] dhtHumidity: Umidade medida pelo DHT22 (% x10, inteiro)
+Amostragem: 1 ponto a cada 5 segundos, totalizando 300 segundos (5 minutos) de histórico.
+Indicadores adicionais: CPU estimada (%), heap livre/mínimo, stack disponível, uso de flash, PSRAM total/livre, número de tasks, status WiFi (CONECTADO/DESCONECTADO), status AP (ATIVO/INATIVO).
+
+
+Em relação aos requisitos, os funcionais principais foram atendidos. Itens pendentes: [em desenvolvimento {multitarefa real em dual-core, interrupções de hardware com ISR, modo deep sleep com RTC_DATA_ATTR, e expansão de persistência para 24h com validação quantitativa}].
+
+
+
+
+9 Conclusão
+O projeto Relógio Inteligente ESP32 demonstrou a viabilidade de implementar um sistema ciberfísico completo em plataforma embarcada de baixo custo, com integração entre sensores, atuadores, conectividade e interface web. Os objetivos gerais e específicos foram majoritariamente alcançados, com destaque para configuração remota sem reflash, observabilidade integrada e persistência em flash. Itens não implementados: [em desenvolvimento {planejado evoluir com core pinning, fila/notificação inter-core, sleep modes e testes de watchdog/tolerância a falhas}].
+Pontos implementados que podem melhorar {O que podia estar melhor}
+- Endpoint de clima usa HTTP simples {trocar para HTTPS e timeout/retry exponencial para robustez e segurança}.
+- Renderização da página web atualiza em intervalos fixos {aplicar cache local + atualização sob demanda para reduzir carga de CPU e rede}.
+- Salvamento de backup em tempo fixo {usar política adaptativa por evento + consolidação em lote para reduzir escrita na flash}.
+Referências
+ADAFRUIT INDUSTRIES. Adafruit SSD1306 Library. GitHub. Disponível em: https://github.com/adafruit/Adafruit_SSD1306.
+ARDUINO. ArduinoJson Documentation. Disponível em: https://arduinojson.org/.
+ESPRESSIF SYSTEMS. ESP-IDF Programming Guide. Disponível em: https://docs.espressif.com/projects/esp-idf/. 
+ESPRESSIF SYSTEMS. ESP32 Technical Reference Manual. Disponível em: https://www.espressif.com/.
+OPENWEATHER. Current Weather Data API. Disponível em: https://openweathermap.org/current.
+RANDOM NERD TUTORIALS. ESP32 Web Server and SPIFFS Guides. Disponível em: https://randomnerdtutorials.com/.
+SILVA, Emanuel Henrique Marcinek. Relógio. GitHub, 2026. Disponível em: https://github.com/emanuelhmarcineksilva/Relogio.
+Apêndices
+Apêndice A - Esquema Elétrico / Diagrama de Ligação /////// Dar uma olhada nos 5V e 3V3 corrige na montagem
+Sugestão de ligações principais:
+- OLED SSD1306: SDA=GPIO21, SCL=GPIO22, VCC=3V3, GND=GND.
+- LCD 16x2 I2C (0x27): SDA=GPIO21, SCL=GPIO22, VCC=5V, GND=GND. [compartilha barramento I2C com OLED e RTC]
+- RTC DS3231: SDA=GPIO21, SCL=GPIO22, VCC=3V3, GND=GND. [compartilha barramento I2C]
+- DHT22: DATA=GPIO23 (com resistor pull-up 10kΩ conforme datasheet), VCC=5V ou 3V3, GND=GND.
+- MAX98357A: BCLK=GPIO26, LRC=GPIO25, DIN=GPIO27, VCC=5V, GND=GND. [saída I2S mono, sem DAC de referência]
+- Botão 1: GPIO4 para GND (INPUT_PULLUP, sem resistor externo necessário).
+- Botão 2: GPIO18 para GND (INPUT_PULLUP, sem resistor externo necessário).
+Apêndice B - Código-Fonte Completo
+Arquivo principal analisado: chronos.ino
+Repositório: https://github.com/emanuelhmarcineksilva/Relogio
+Apêndice C - Manual de Usuário
+1) Alimentar o ESP32 (5V USB ou bateria).
+2) Verificar no OLED o IP local (se WiFi conectado) ou AP de recuperação (se WiFi falhar). LCD 16x2 também exibe hora e IP/AP.
+3) Acessar no navegador: http://<ip_local> (ex: http://192.168.0.20) ou http://192.168.4.1 (AP padrão).
+4) Na aba "Principal": Ajustar hora do sistema, configurar 3 alarmes (hora, minuto, melodia, on/off), visualizar temperatura local (DHT22), umidade local, e clima da API.
+5) Na aba "Monitoramento": Visualizar logs em tempo real (Logs), log serial (Serial), backup da flash (Flash), ou 7 gráficos de performance (Gráficos). Botões para forçar salvamento, baixar/restaurar backup de histórico.
+6) Na aba "Sobre": Identificação do projeto (v3.1.0), ajustar intervalos de leitura DHT (ms), intervalo de clima (ms), intervalo de backup (ms), trocar SSID e senha do WiFi.
+7) Usar botão 1 (GPIO4) para navegar menus no OLED; botão 2 (GPIO18) para confirmar. No display OLED: Relógio → Menu → Alarmes/Hora → Editar.
+8) O sistema salva automaticamente configurações na flash. WiFi será reconectado ao reiniciar.
+9) Para resetar: Renomeie /wifi_config.txt em SPIFFS ou faça format via Arduino IDE.
+Apêndice D - Evidências Fotográficas
+Inserir:
+- Foto da montagem física interna.
+- Foto da caixa em EVA preto fosco.
+- Foto do OLED em operação.
+- Print da interface web (abas Principal/Monitoramento/Sobre).
+- Print dos gráficos de performance e logs.
+
+

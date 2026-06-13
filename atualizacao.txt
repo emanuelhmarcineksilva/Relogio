@@ -1,0 +1,266 @@
+================================================================================
+REGISTRO DE ATUALIZAÇÕES - RELOGIO5.INO vs DOCUMENTOPROJETO.TXT
+Data: 09/06/2026
+Versão: 3.1.0
+================================================================================
+
+ALTERAÇÕES IDENTIFICADAS E SINCRONIZAÇÕES NECESSÁRIAS:
+
+================================================================================
+1. HARDWARE ADICIONADO: LCD 16x2 I2C (0x27)
+================================================================================
+ONDE FOI ADICIONADO NO CÓDIGO:
+  - Linha 54: #include <LiquidCrystal_I2C.h>
+  - Linha 80: LiquidCrystal_I2C lcd(0x27, 16, 2);
+  - Linhas 531: bool lcdOkBoot = false;
+  - Linhas 772-813: Funções iniciarLCD() e atualizarLCD()
+  - Linhas 1294-1295: Boot state BOOT_LCD
+  - Linhas 1540-1546: Atualização LCD no estado RELOGIO
+
+O QUE FOI INSERIDO:
+  - Biblioteca para controlar display LCD 16x2 via I2C
+  - Variável global lcdOkBoot para verificar inicialização
+  - Funções: iniciarLCD() e atualizarLCD(agora, wifiConectado)
+  - LCD mostra: "HH:MM | TT c*" na linha 1 e "IP/AP: xxx.xxx.x.x" na linha 2
+  - Inicialização no boot (BOOT_LCD)
+  - Atualização contínua no loop principal (a cada segundo)
+
+IMPACTO NO DOCUMENTO:
+  - Apêndice A (Esquema Elétrico): FALTAM pinagens do LCD
+  - Seção 6.2 (Organização do Firmware): INCOMPLETO - não menciona LCD
+  - Seção 3.3 (Requisitos de Hardware): PRECISA adicionar LCD na lista
+
+DELETADO: NADA (apenas adições)
+
+MUDADO: NADA (apenas adições)
+
+================================================================================
+2. INTERFACE GRÁFICA MELHORADA NO OLED - ÍCONES DE CLIMA
+================================================================================
+ONDE FOI ADICIONADO NO CÓDIGO:
+  - Linhas 815-870: Funções desenharNuvem(), desenharSol(), desenharTermometro(), 
+                     desenharNeve(), getTipoClima(), gerarMsgClima()
+  - Linhas 1560-1635: Render do OLED no estado RELOGIO com ícones
+
+O QUE FOI INSERIDO:
+  - 4 funções de desenho: desenharNuvem(), desenharSol(), desenharTermometro(), desenharNeve()
+  - Função getTipoClima() que classifica clima em 4 categorias
+  - Função gerarMsgClima() que gera mensagens baseadas em temperatura
+  - Variáveis: mostrarMsgClima, inicioMsgClima, msgClima, DURACAO_MSG_CLIMA
+  - Display agora mostra: Ícone de clima, temperatura da API, status WiFi e alarme
+
+IMPACTO NO DOCUMENTO:
+  - Seção 6.2 (Organização do Firmware): INCOMPLETO - não menciona desenho de ícones
+  - Seção 7.1.2 (Testes dos Atuadores): PRECISA atualizar descrição do OLED
+
+DELETADO: NADA (apenas adições)
+
+MUDADO: A forma como o OLED renderiza o estado RELOGIO (muito mais visual agora)
+
+================================================================================
+3. SISTEMA DE HISTÓRICO DE PERFORMANCE EXPANDIDO
+================================================================================
+ONDE FOI ALTERADO NO CÓDIGO:
+  - Linhas 432-438: PERF_HIST_SIZE e PERF_FUNCOES definidas
+  - Linhas 440-467: Funções salvarPerfFlash() e carregarPerfFlash()
+  - Linhas 1869-1896: Coleta de métricas e backup automático
+
+O QUE FOI INSERIDO:
+  - perfHist[PERF_FUNCOES][PERF_HIST_SIZE] com 7 funções monitoradas
+  - Amostragem a cada 5 segundos (PERF_SAMPLE_MS = 5000)
+  - Histórico binário em SPIFFS (/perf_hist.bin) com suporte a restauração
+
+O QUE FOI DELETADO: NADA
+
+O QUE FOI MUDADO:
+  - Comentários melhorados sobre as 7 funções monitoradas (linhas 424-431)
+  - Tamanho do histórico: 60 amostras (5 minutos cada = 300 minutos total)
+
+IMPACTO NO DOCUMENTO:
+  - Seção 6.7 (Mecanismos de Persistência): INCOMPLETO - não menciona /perf_hist.bin
+  - Comentário em RF01 (Requisitos Funcionais): DESATUALIZADO (menciona 24h mas código faz 5 min)
+
+DELETADO NO DOCUMENTO: Nada específico
+
+MUDADO NO DOCUMENTO: Descrição de "Guia Única de Performance" e "Gráficos de Performance"
+
+================================================================================
+4. ENDPOINTS DA API WEB
+================================================================================
+ONDE FORAM ADICIONADOS NO CÓDIGO:
+  - Linhas 1129-1244: Handlers HTTP (handlePerf, handleSalvar, handleDownloadPerf, handleUploadPerf)
+  - Linhas 1247-1266: Inicialização das rotas
+
+ENDPOINTS IMPLEMENTADOS:
+  GET  /api/perf                 → Retorna JSON com histórico de performance (7 métricas)
+  GET  /api/salvar              → Força salvamento completo na flash
+  GET  /api/download_perf       → Retorna histórico em formato CSV/texto
+  POST /api/upload_perf         → Restaura histórico a partir de arquivo
+
+O QUE FOI INSERIDO:
+  - Serialização JSON com heap, stack, flash, PSRAM, tasks, WiFi, etc.
+  - Exportação/importação de backup em formato texto simples (CSV)
+
+IMPACTO NO DOCUMENTO:
+  - Seção 6.6 (Estrutura da Interface Web): INCOMPLETO - faltam estes endpoints na lista
+  - Seção 6.2 (Organização do Firmware): DESATUALIZADO - descrição genérica
+
+DELETADO: NADA
+
+MUDADO: NADA (apenas adições)
+
+================================================================================
+5. MECANISMOS DE INICIALIZAÇÃO DO DHT22
+================================================================================
+ONDE FOI ADICIONADO NO CÓDIGO:
+  - Linhas 120-124: Definições DHTPIN, DHTTYPE, objeto DHT
+  - Linhas 1398-1416: Leitura periódica no loop() com cronometragem
+  - Linhas 1367-1368: Boot state BOOT_DHT
+  - Linhas 109-110: Variáveis globais dhtTemperature, dhtHumidity
+
+O QUE FOI INSERIDO:
+  - Sensor DHT22 no GPIO 23 com pull-up conforme datasheet
+  - Leitura periódica controlada por cfgDhtIntervaloMs (padrão 5s)
+  - Log de erros quando leitura falha
+  - Integração com a máquina de estados OLED
+
+IMPACTO NO DOCUMENTO:
+  - Apêndice A (Esquema Elétrico): IMPRECISO - menciona "DATA=GPIO23" mas sem detalhes de pull-up
+  - Seção 6.2 (Organização do Firmware): INCOMPLETO - não menciona DHT22 explicitamente
+
+DELETADO: NADA
+
+MUDADO: NADA (apenas adições)
+
+================================================================================
+6. VARIÁVEIS DE PERFORMANCE ADICIONADAS
+================================================================================
+ONDE FOI ADICIONADO NO CÓDIGO:
+  - Linhas 510-521: Definições de tempos de execução
+  - Linhas 513-520: Variáveis tempoLoopUs, tempoPegarClimaUs, etc.
+
+NOVAS VARIÁVEIS:
+  - tempoLoopUs: Tempo total do loop()
+  - tempoPegarClimaUs: Tempo da requisição HTTP
+  - tempoPegarDHTUS: Tempo de leitura do DHT
+  - tempoRtcNowUs: Tempo de leitura do RTC
+  - tempoLeituraBotoesUs: Tempo de debounce dos botões
+  - tempoLogicaAlarmeUs: Tempo da lógica de alarmes
+  - tempoAtualizarDisplayUs: Tempo de redesenho do OLED
+  - cpuUsoEstimado: Percentual de CPU (baseado em tempoLoopUs)
+  - stackLoopWords: Stack disponível da task principal
+
+IMPACTO NO DOCUMENTO:
+  - Seção 8 (Resultados): INCOMPLETO - não descreve estas métricas
+  - Seção 6.3 (Estrutura das Tasks): DESATUALIZADO - menciona tarefas que não existem
+
+DELETADO: NADA
+
+MUDADO: NADA (apenas adições)
+
+================================================================================
+7. SISTEMA DE MENSAGENS DE CLIMA COM TIMEOUT
+================================================================================
+ONDE FOI ADICIONADO NO CÓDIGO:
+  - Linhas 533-537: Variáveis mostrarMsgClima, inicioMsgClima, msgClima, DURACAO_MSG_CLIMA
+  - Linhas 859-870: Função gerarMsgClima()
+  - Linhas 1512-1515: Disparo de mensagem ao alarme disparar
+  - Linhas 1535-1538: Timeout de 10 segundos
+
+O QUE FOI INSERIDO:
+  - Sistema de exibição temporária de mensagens de clima
+  - Duração de 10 segundos (DURACAO_MSG_CLIMA = 10000ms)
+  - Mensagens geradas de acordo com a temperatura:
+    - T < 10°C: "Leve agasalhos"
+    - 10°C ≤ T < 20°C: "O dia esta tranquilo"
+    - 20°C ≤ T < 27°C: "O dia esta tranquilo"
+    - T ≥ 27°C: "O dia estara quente"
+
+IMPACTO NO DOCUMENTO:
+  - Nenhum impacto significativo (recurso novo não documentado)
+
+DELETADO: NADA
+
+MUDADO: NADA (apenas adições)
+
+================================================================================
+8. VERSÃO DO FIRMWARE
+================================================================================
+ONDE FOI ALTERADO NO CÓDIGO:
+  - Linha 3: #define FIRMWARE_VERSION "3.1.0"
+
+O QUE FOI MUDADO:
+  - Versão anterior não especificada no documento
+  - Versão atual: 3.1.0
+
+IMPACTO NO DOCUMENTO:
+  - Seção 3 (Requisitos Funcionais - RF06 Sobre): Deve incluir versão 3.1.0
+
+DELETADO: NADA
+
+MUDADO: APENAS a versão
+
+================================================================================
+9. BOOT STATE MACHINE - ADIÇÕES
+================================================================================
+ONDE FOI ADICIONADO NO CÓDIGO:
+  - Linhas 540-555: Enum BootState com novos estados
+  - Linhas 1292-1296: BOOT_LCD adicionado
+  - Linhas 1367-1368: BOOT_DHT adicionado
+
+NOVOS ESTADOS:
+  - BOOT_LCD (entre BOOT_SPIFFS e BOOT_RTC)
+  - BOOT_DHT (após BOOT_SERVER)
+
+O QUE FOI INSERIDO:
+  - Inicialização do LCD no boot (estado 3/9)
+  - Inicialização do DHT no boot (estado 9/9)
+
+IMPACTO NO DOCUMENTO:
+  - Seção 6.2 (Organização do Firmware): Sequência de boot está DESATUALIZADA
+
+DELETADO: NADA
+
+MUDADO: Sequência de boot (agora 9 etapas em vez de genérico)
+
+================================================================================
+RESUMO DAS MUDANÇAS POR CATEGORIA
+================================================================================
+
+ADIÇÕES AO CÓDIGO (9 mudanças principais):
+  1. LCD 16x2 I2C
+  2. Ícones de clima no OLED
+  3. Histórico de performance expandido
+  4. Endpoints API para performance
+  5. Sensor DHT22 integrado
+  6. Variáveis de cronometragem
+  7. Sistema de mensagens de clima
+  8. Versão 3.1.0
+  9. Boot state machine melhorada
+
+DELETIONS: NENHUMA
+
+MODIFICAÇÕES: NENHUMA (apenas refatoração visual do OLED)
+
+================================================================================
+IMPACTO NA DOCUMENTAÇÃO
+================================================================================
+
+SEÇÕES QUE PRECISAM SER ATUALIZADAS:
+  1. Apêndice A (Esquema Elétrico) - ADICIONAR LCD 16x2
+  2. Seção 6.2 (Organização do Firmware) - REESCREVER com detalhes atuais
+  3. Seção 6.3 (Estrutura das Tasks) - VERIFICAR se há tasks reais
+  4. Seção 6.6 (Estrutura e Organização da Interface Web) - ADICIONAR endpoints de perf
+  5. Seção 6.7 (Mecanismos de Persistência) - ADICIONAR /perf_hist.bin
+  6. Seção 3.3 (Requisitos de Hardware) - ADICIONAR LCD e DHT22
+  7. Seção 8 (Resultados) - DESCREVER as 9 métricas coletadas
+  8. Seção 3 (Requisitos Funcionais - RF06 Sobre) - ADICIONAR versão 3.1.0
+
+SEÇÕES DESATUALIZADAS (leve verificação):
+  - Seção 4.2 (Concorrência) - Mencionado que precisa melhorar com detalhes do projeto
+  - Seção 5.1 (Planejamento) - Muito genérico, poderia ser mais específico
+  - Seção 7.1.2 (Testes dos Atuadores) - OLED agora tem ícones (atualizar descrição)
+
+================================================================================
+FIM DO REGISTRO
+================================================================================

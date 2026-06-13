@@ -1,0 +1,307 @@
+================================================================================
+ANÁLISE FINAL: Comparação relogio3.ino vs relogio6.ino - Funções de Gráficos
+================================================================================
+
+ARQUIVOS ANALISADOS:
+- relogio3.ino (Versão 3.1.0): 1897 linhas
+- relogio6.ino (Versão 4.0.0): 2683 linhas
+
+================================================================================
+1. FUNÇÕES DE GRÁFICOS - RESULTADO FINAL
+================================================================================
+
+FUNÇÃO: drawChart() [JavaScript - Canvas 2D]
+Localização: relogio3.ino:633 / relogio6.ino:1101
+Status: IDÊNTICA ✓
+
+FUNÇÃO: gPerf() [JavaScript - Fetch API]
+Localização: relogio3.ino:634 / relogio6.ino:1102
+Status: IDÊNTICA ✓
+
+ROTA: /api/perf [C++ - Retorna JSON]
+Localização: relogio3.ino:1130 / relogio6.ino:1797
+Status: IDÊNTICA ✓
+
+HTML CANVAS STRUCTURE
+Localização: Ambas idênticas
+- 7 elementos canvas (pc0 até pc6)
+- Tamanho: 90px altura
+- Classes CSS: cgrid (grid 2x4), ccard (card container)
+
+RESULTADO: Não há necessidade de correção nas funções de gráficos!
+As funções JavaScript e roteiro Web estão 100% compatíveis.
+
+================================================================================
+2. MUDANÇAS NO ARMAZENAMENTO DE DADOS (FASE 2.4)
+================================================================================
+
+DIFERENÇA 1: TAMANHO DO BUFFER DE HISTÓRICO
+
+relogio3.ino:
+  #define PERF_HIST_SIZE 60
+  #define PERF_SAMPLE_MS 5000
+  - Período: 60 amostras × 5 segundos = 300 segundos = 5 MINUTOS
+  - Memória total: 60 × 7 × 4 bytes = 1680 bytes (~1.7 KB)
+
+relogio6.ino:
+  #define PERF_HIST_SIZE 288
+  #define PERF_SAMPLE_MS 300000
+  - Período: 288 amostras × 5 minutos = 1440 minutos = 24 HORAS
+  - Memória total: 288 × 7 × 4 bytes = 8064 bytes (~8 KB)
+
+MUDANÇA: O relogio6 armazena 24 horas de dados em vez de 5 minutos!
+
+DIFERENÇA 2: PROTEÇÃO DE INTEGRIDADE DE DADOS
+
+relogio3.ino:
+  - Sem validação de integridade
+  - Arquivo salvo: perfHist + perfHistPos + perfHistFull (1685 bytes)
+  - Carregamento: verifica apenas tamanho do arquivo
+  - Risco: Corrupção não detectada
+
+relogio6.ino (FASE 2.4):
+  - COM validação CRC32
+  - Função: crc32_simple() (linhas 478-491)
+  - Arquivo salvo: perfHist + perfHistPos + perfHistFull + CRC (8093 bytes)
+  - Carregamento: verifica CRC e rejeita dados corrompidos
+  - Benefício: Maior robustez e confiabilidade
+
+DIFERENÇA 3: LOGGING DETALHADO
+
+relogio3.ino:
+  - Sem log de amostragem
+  - Apenas "[PERF] Historico salvo na flash!"
+
+relogio6.ino:
+  - Log de cada amostra coletada (linha 2670-2673)
+  - Exemplo: "[PERF] Sample #123: Loop=450us API=1200us RTC=50us DHT_T=25.3°C DHT_H=60.5%"
+  - Log de CRC em salvar e carregar
+
+================================================================================
+3. FORMATO JSON - DADOS RETORNADOS
+================================================================================
+
+/api/perf retorna (idêntico em ambas):
+
+{
+  "atual": [
+    tempoLoopUs,            // [0] Tempo total do loop em microsegundos
+    tempoPegarClimaUs,      // [1] Tempo da requisição de clima
+    tempoRtcNowUs,          // [2] Tempo de leitura do RTC
+    tempoLeituraBotoesUs,   // [3] Tempo de processamento de botões
+    dhtTemperature*10,      // [4] Temperatura DHT × 10 (int)
+    tempoAtualizarDisplayUs,// [5] Tempo de update do display
+    dhtHumidity*10          // [6] Umidade DHT × 10 (int)
+  ],
+  "hist": [
+    [...], // função 0
+    [...], // função 1
+    [...], // função 2
+    [...], // função 3
+    [...], // função 4
+    [...], // função 5
+    [...], // função 6
+  ],
+  "pos": perfHistPos,      // Posição atual no ring buffer
+  "full": true/false,      // Se buffer completou primeira volta
+  ... (campos adicionais: cpu, heap, wifi, ap, etc)
+}
+
+PROCESSAMENTO NO FRONTEND (gPerf):
+1. Busca JSON de /api/perf
+2. Para cada função (f=0 até 6):
+   - Reordena ring buffer usando pos e full
+   - Define label: "°C" se f===4, "%" se f===6, "us" caso contrário
+   - Converte valor atual: divide por 10 se f===4 ou f===6
+   - Chama drawChart() com dados ordenados
+
+DESENHO (drawChart):
+- Fundo: #0d0d16 (quase preto)
+- Grid: 4 linhas horizontais
+- Preenchimento: gradiente de cor com 44% e 08% de transparência
+- Linha: 2px com shadow de 10px
+- Estatísticas: max/min no canto inferior
+
+================================================================================
+4. AMOSTRAGEM DE DADOS - LOOP PRINCIPAL
+================================================================================
+
+LOCALIZAÇÃO: relogio3.ino:1878 / relogio6.ino:2657
+LÓGICA: IDÊNTICA em ambas
+
+Pseudocódigo:
+```
+if (millis() - ultimaAmostraPerf >= PERF_SAMPLE_MS) {
+  perfHist[0][perfHistPos] = tempoLoopUs;
+  perfHist[1][perfHistPos] = tempoPegarClimaUs;
+  perfHist[2][perfHistPos] = tempoRtcNowUs;
+  perfHist[3][perfHistPos] = tempoLeituraBotoesUs;
+  perfHist[4][perfHistPos] = (uint32_t)(isnan(dhtTemperature) ? 0 : dhtTemperature * 10.0f);
+  perfHist[5][perfHistPos] = tempoAtualizarDisplayUs;
+  perfHist[6][perfHistPos] = (uint32_t)(isnan(dhtHumidity) ? 0 : dhtHumidity * 10.0f);
+  
+  perfHistPos = (perfHistPos + 1) % PERF_HIST_SIZE;
+  if (perfHistPos == 0) perfHistFull = true;
+  ultimaAmostraPerf = millis();
+}
+```
+
+DIFERENÇA DE COMPORTAMENTO:
+
+relogio3.ino:
+  - Amostragem a cada 5 SEGUNDOS
+  - Completa 60 amostras em 5 minutos
+  - Cada boot reinicia o contador (perde histórico)
+
+relogio6.ino:
+  - Amostragem a cada 5 MINUTOS (60x mais lento)
+  - Completa 288 amostras em 24 horas
+  - Dados persistem entre boots (salvos em flash com CRC)
+
+IMPACTO NA WEB:
+- Gráficos em relogio6 mostram escala temporal 24 horas vs 5 minutos
+- Mais granularidade temporal (cada ponto = 5min em vez de 5seg)
+- Melhor visualização de tendências de longo prazo
+
+================================================================================
+5. PERSISTÊNCIA EM FLASH (SPIFFS)
+================================================================================
+
+ARQUIVO: /perf_hist.bin
+
+relogio3.ino - salvarPerfFlash() [linhas 441-450]:
+  Escreve:
+  1. perfHist (1680 bytes)
+  2. perfHistPos (4 bytes)
+  3. perfHistFull (1 byte)
+  Total: 1685 bytes
+
+  Carrega: Valida tamanho esperado e restaura
+
+relogio6.ino - salvarPerfFlash() [linhas 494-511]:
+  Calcula CRC32 antes de salvar
+  Escreve:
+  1. perfHist (8064 bytes)
+  2. perfHistPos (4 bytes)
+  3. perfHistFull (1 byte)
+  4. perfHistCRC (4 bytes) ← NOVO!
+  Total: 8073 bytes
+
+  Carrega: Valida CRC e aceita/rejeita (FASE 2.4)
+  Se inválido: memset(perfHist, 0) e reinicia
+
+================================================================================
+6. CHECKLIST DE COMPATIBILIDADE
+================================================================================
+
+JavaScript Frontend (Gráficos):
+  ✓ drawChart() - IDÊNTICA
+  ✓ gPerf() - IDÊNTICA
+  ✓ Canvas elements - IDÊNTICA
+  ✓ Rótulos (PN, PC arrays) - IDÊNTICA
+
+Backend JSON API:
+  ✓ /api/perf - IDÊNTICA
+  ✓ Estrutura JSON - IDÊNTICA
+  ✓ Campos "atual[7]" - IDÊNTICA
+  ✓ Campos "hist[7][]" - IDÊNTICA
+
+Amostragem de Dados:
+  ✓ Coleta de 7 métricas - IDÊNTICA
+  ✓ Conversão temp/umidade x10 - IDÊNTICA
+  ✓ Ring buffer modulo - IDÊNTICA
+
+CONCLUSÃO: Os gráficos funcionarão identicamente em ambas versões!
+A mudança de PERF_HIST_SIZE/SAMPLE_MS é transparente para o frontend.
+
+================================================================================
+7. RESUMO EXECUTIVO
+================================================================================
+
+PERGUNTA 1: Qual é o formato do JSON retornado por /api/perf?
+RESPOSTA: Ambas versões retornam estrutura IDÊNTICA com 7 arrays (hist[7][n])
+          O tamanho de 'n' muda: 60 em relogio3, 288 em relogio6
+
+PERGUNTA 2: Como os dados são processados em drawChart?
+RESPOSTA: Mesma lógica em ambas. Desenha gráfico 2D em canvas com:
+          - Reordenação de ring buffer
+          - Cálculo de escala (min/max com margem 30%)
+          - Preenchimento com gradiente
+          - Linha com sombra
+          - Exibição de max/min
+
+PERGUNTA 3: Se há mudanças no tamanho dos arrays ou número de gráficos?
+RESPOSTA: SIM mudança no tamanho:
+          - relogio3: PERF_HIST_SIZE=60 (5 min de dados)
+          - relogio6: PERF_HIST_SIZE=288 (24h de dados)
+          Número de gráficos: 7 em AMBAS (mantido)
+
+PERGUNTA 4: Se há diferenças na estrutura HTML?
+RESPOSTA: NÃO. Ambas têm 7 canvas elements (pc0-pc6) idênticos.
+
+================================================================================
+8. CORREÇÕES NECESSÁRIAS NO RELOGIO6.INO
+================================================================================
+
+✗ NENHUMA correção nas funções de gráficos é necessária!
+
+As seguintes funções estão corretas:
+  ✓ drawChart() em HTML/JS (linha 1101)
+  ✓ gPerf() em HTML/JS (linha 1102)
+  ✓ handlePerf() em C++ (linha 1797)
+  ✓ Lógica de amostragem no loop (linha 2657)
+
+O que foi validado:
+  ✓ PERF_HIST_SIZE está correto (288)
+  ✓ PERF_SAMPLE_MS está correto (300000ms = 5min)
+  ✓ Amostragem usa PERF_FUNCOES=7 (correto)
+  ✓ Conversão de temp/umidade x10 (correto)
+  ✓ CRC32 implementado (FASE 2.4 - Novo!)
+  ✓ Compatibilidade com frontend mantida
+
+================================================================================
+9. DIFERENÇAS ARQUITETURAIS (Fora do escopo de gráficos)
+================================================================================
+
+Além dos gráficos, relogio6.ino adiciona:
+
+FASE 2.1: Multitarefa RTOS Dual-Core
+  - TaskAquisicao no Core 0
+  - TaskUI no Core 1
+  - xQueueOverwrite para sensores
+  - Não afeta gráficos
+
+FASE 2.2: Interrupções de Botões
+  - ISR com fila de eventos
+  - esp_timer debounce
+  - Não afeta gráficos
+
+FASE 2.3: Modos de Sono
+  - Light Sleep (50x menos potência)
+  - Deep Sleep (10µW)
+  - RTC_DATA_ATTR persistência
+  - Não afeta gráficos
+
+FASE 2.4: Persistência 24h + CRC
+  - Buffer de 288 amostras
+  - Validação CRC32 ← RELACIONADO com gráficos
+  - Recuperação de deep sleep
+
+================================================================================
+10. RECOMENDAÇÕES FINAIS
+================================================================================
+
+1. Os gráficos funcionarão corretamente em relogio6.ino SEM MUDANÇAS
+2. Simplesmente copiar as funções de gráficos de relogio3 para relogio6 funciona
+3. A mudança de 60→288 amostras é compatível (dados apenas ocupam mais espaço)
+4. O CRC32 em relogio6 é um MELHORAMENTO, não um problema
+5. Teste de validação: Gráficos devem mostrar 24h em vez de 5min
+
+PRÓXIMOS PASSOS:
+- Se houver problemas nos gráficos, procurar em:
+  * Como perfHist é inicializado
+  * Se ultimaAmostraPerf está sendo resetado corretamente
+  * Se perfHistPos está sincronizado com PERF_HIST_SIZE (288)
+  * Se o CRC está validando corretamente ao carregar
+
+================================================================================

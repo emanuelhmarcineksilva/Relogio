@@ -1,0 +1,259 @@
+================================================================================
+                    ALTERAÇÕES REALIZADAS - relogio3.ino
+                          Versão 3.2.0 - LCD + OLED
+================================================================================
+
+DATA: 30/05/2026
+OBJETIVO: Corrigir inicialização do LCD 16x2 com PCF8574 e distribuir 
+          responsabilidades entre OLED (clima) e LCD (hora + IP/AP)
+
+================================================================================
+MUDANÇA #1: CABEÇALHO DO ARQUIVO (Linhas 1-43)
+================================================================================
+
+✅ DOCUMENTAÇÃO ATUALIZADA:
+   - Adicionado "[CLIMA]" ao OLED
+   - Adicionado "[HORA+IP]" ao LCD
+   - Removida descrição incorreta de "mostra hora em display OLED"
+   - Adicionada seção "DISTRIBUIÇÃO DE RESPONSABILIDADES DOS DISPLAYS"
+
+CONTEÚDO:
+   OLED (128x64):
+     - ESTADO RELÓGIO: Mostra clima (símbolo/desenho), temperatura API, descrição
+     - MENUS: Alarmes, Hora, navegação
+     - ALARMES: Aviso quando alarme dispara
+   
+   LCD (16x2):
+     - LINHA 1: HH:MM (hora do sistema) | TEMP LOCAL (DHT22)
+     - LINHA 2: IP/AP | SÍMBOLO DO CLIMA
+     - Atualiza a cada 1 segundo (não-bloqueante)
+
+================================================================================
+MUDANÇA #2: INICIALIZAÇÃO DO LCD NO BOOT (Linha 1295)
+================================================================================
+
+❌ ANTES:
+   case BOOT_LCD:
+     if (agora - bootStepTime < BOOT_MSG_INTERVAL) break;
+     displayLCD.begin();      // Inicializa o LCD (retorna true/false)
+     ...
+
+✅ DEPOIS:
+   case BOOT_LCD:
+     if (agora - bootStepTime < BOOT_MSG_INTERVAL) break;
+     // Inicializa LCD com I2C (PCF8574) no endereço correto
+     displayLCD.begin(LCD_COLS, LCD_ROWS);  // 16x2
+     ...
+
+EXPLICAÇÃO:
+   - A biblioteca LiquidCrystal_PCF8574 requer os parâmetros LCD_COLS (16) 
+     e LCD_ROWS (2) na inicialização
+   - Sem esses parâmetros, o LCD não funciona corretamente
+
+================================================================================
+MUDANÇA #3: FUNÇÃO atualizarLCD() (Linhas 838-894)
+================================================================================
+
+LOCALIZAÇÃO: Função atualizarLCD() - comentário [TAG_CLIMA_API]
+
+✅ NOVA DOCUMENTAÇÃO (Linha 840):
+   // LCD mostra: HORA + TEMPERATURA LOCAL (DHT) | IP/AP + CLIMA
+
+✅ LINHA 1 DO LCD (Linhas 857-868):
+   Mostra: "HH:MM | XX.XC"
+   Exemplo: "07:30 | 25.5C"
+   
+   Componentes:
+   - now.hour(), now.minute()    → Hora do sistema (RTC)
+   - dhtTemperature              → Temperatura local (sensor DHT22)
+
+✅ LINHA 2 DO LCD (Linhas 870-893):
+   Mostra: "IP/AP[espaço]CLIMA"
+   Exemplo: "IP:1.20 [Sol]" ou "AP:4.1 [Chuva]"
+   
+   Componentes:
+   - WiFi.localIP() ou "AP:4.1"  → Endereço de rede
+   - simboloClima                → [Sol], [Nuvem], [Chuva], [Frio], [--]
+
+✅ CARACTERÍSTICAS:
+   - Não-bloqueante: atualiza a cada LCD_UPDATE_MS (1000ms)
+   - Verifica se já passou intervalo antes de atualizar
+   - Limpa display e atualiza ambas as linhas
+   - Trata valores NaN (sensor DHT com falha)
+   - Trunca IP para caber nos 16 caracteres
+
+================================================================================
+MUDANÇA #4: RENDER DO OLED - MODO RELÓGIO (Linhas 1554-1605)
+================================================================================
+
+LOCALIZAÇÃO: Loop principal, seção "Render Relógio"
+
+❌ ANTES:
+   - Mostrava IP/AP no topo
+   - Mostrava HORA grande (4x4)
+   - Mostrava Temperatura local (DHT) + Umidade local
+
+✅ DEPOIS:
+   - Mostra "CLIMA" como título
+   - Mostra SÍMBOLO do clima grande (4x4)
+   - Mostra TEMPERATURA da API
+   - Mostra DESCRIÇÃO do clima
+
+✅ ESTRUTURA DO OLED (128x64):
+
+   ┌─────────────────────────┐
+   │     CLIMA      (Y=0)    │ Linha 1 - Título
+   │                         │
+   │      SUN        (Y=18)  │ Linha 2-4 - Símbolo grande (4x4)
+   │     (ou RAIN)           │           (RAIN, SUN, CLOUD, COLD)
+   │   (ou CLOUD)            │
+   │     (ou COLD)           │
+   │                         │
+   │    28.5C       (Y=40)   │ Linha 5-6 - Temp API (2x)
+   │                         │
+   │  céu limpo     (Y=55)   │ Linha 7-8 - Descrição (1x)
+   │                         │
+   └─────────────────────────┘
+
+✅ SÍMBOLOS IMPLEMENTADOS:
+   - "RAIN"  → Se descricaoClima contém "chuva" ou "rain"
+   - "SUN"   → Se temperatura > 25°C
+   - "CLOUD" → Se temperatura entre 14°C e 25°C
+   - "COLD"  → Se temperatura < 14°C
+   - "----"  → Padrão/desconhecido
+
+✅ CÓDIGO RELEVANTE (Linhas 1569-1579):
+   if (simboloClima.indexOf("Chuva") >= 0) {
+     displayTela.print("RAIN");
+   } else if (simboloClima.indexOf("Sol") >= 0) {
+     displayTela.print("SUN");
+   } else if (simboloClima.indexOf("Nuvem") >= 0) {
+     displayTela.print("CLOUD");
+   } else if (simboloClima.indexOf("Frio") >= 0) {
+     displayTela.print("COLD");
+   } else {
+     displayTela.print("----");
+   }
+
+================================================================================
+RESULTADO VISUAL ESPERADO
+================================================================================
+
+LCD 16x2 (Atualiza a cada 1 segundo):
+┌────────────────────┐
+│ 07:30 | 25.5C      │  Hora + Temperatura local (DHT)
+│ IP:1.20 [Sol]      │  IP/AP + Símbolo do clima
+└────────────────────┘
+
+OLED 128x64 (Tela inicial - RELOGIO):
+┌──────────────────────────┐
+│        CLIMA             │
+│                          │
+│        SUN               │
+│                          │
+│      28.5C               │
+│ céu limpo                │
+└──────────────────────────┘
+
+OLED 128x64 (Menu principal):
+┌──────────────────────────┐
+│          MENU            │
+│    > ALARMES             │
+│      Hora                │
+│      Sair                │
+└──────────────────────────┘
+
+================================================================================
+DISTRIBUIÇÃO DE RESPONSABILIDADES
+================================================================================
+
+OLED 128x64:
+✅ Tela inicial (RELOGIO): Clima (símbolo grande) + Temp API + Descrição
+✅ Menu: Acesso a alarmes, hora do sistema, sair
+✅ Lista de alarmes: Mostra 3 alarmes configuráveis
+✅ Edição: Permite editar hora e melodia dos alarmes
+✅ Alarme disparado: Mostra ">>> ALARME N <<<" em destaque
+
+LCD 16x2:
+✅ LINHA 1: Hora do sistema (HH:MM) + Temperatura local (DHT22)
+✅ LINHA 2: Endereço de rede (IP ou AP) + Símbolo do clima
+✅ Atualiza a cada 1 segundo (não-bloqueante)
+✅ Sempre visível (não tem menus)
+
+================================================================================
+TESTES RECOMENDADOS
+================================================================================
+
+1. INICIALIZAÇÃO:
+   ✓ LCD mostra "Relogio ESP32" + "Inicializando..." durante boot
+   ✓ OLED mostra "[2/9] LCD OK"
+   ✓ Nenhum erro serial sobre LCD
+
+2. FUNCIONAMENTO DO LCD:
+   ✓ LINHA 1: Hora atualiza corretamente (HH:MM)
+   ✓ LINHA 1: Temperatura do DHT aparece (ou "--.-C" se sensor falhar)
+   ✓ LINHA 2: IP aparece quando WiFi conectado (IP:x.x)
+   ✓ LINHA 2: AP:4.1 aparece quando WiFi desconectado
+   ✓ LINHA 2: Símbolo do clima [Sol], [Nuvem], [Chuva], [Frio]
+   ✓ Atualização a cada 1 segundo (não-bloqueante)
+
+3. FUNCIONAMENTO DO OLED:
+   ✓ Modo RELOGIO mostra: CLIMA + SUN/RAIN/CLOUD/COLD
+   ✓ Temperatura da API aparece corretamente
+   ✓ Descrição do clima (em português ou inglês)
+   ✓ Menus funcionam normalmente
+   ✓ Alarmes disparam e mostram na tela
+
+4. SENSOR DHT:
+   ✓ Leitura a cada 5 segundos (configurável)
+   ✓ Temperatura aparece no LCD linha 1
+   ✓ Valor válido (0-60°C aprox.) ou --.-C
+
+5. CLIMA DA API:
+   ✓ Busca automática na primeira conexão WiFi
+   ✓ Atualiza a cada 10 minutos (configurável)
+   ✓ Símbolo correto baseado em temperatura/descrição
+   ✓ Temperatura aparece no OLED linha 5-6
+
+================================================================================
+NOTAS IMPORTANTES
+================================================================================
+
+1. BARRAMENTO I2C COMPARTILHADO:
+   - OLED, LCD e RTC estão no MESMO barramento I2C
+   - SDA: GPIO 21
+   - SCL: GPIO 22
+   - Endereços:
+     * OLED: 0x3C
+     * LCD: 0x27
+     * RTC: 0x68
+
+2. SE O LCD NÃO FUNCIONAR:
+   a) Verifique endereço I2C com scanner:
+      #include <Wire.h>
+      void setup() { Wire.begin(21, 22); }
+      Procure por 0x27 no serial monitor
+   
+   b) Se encontrar outro endereço, mude LCD_ADDR na linha 70
+   
+   c) Verifique polaridade:
+      - SDA (amarelo) → GPIO 21
+      - SCL (verde) → GPIO 22
+      - GND → GND
+      - VCC → 5V (ou 3.3V com resistores pull-up)
+
+3. TEMPERATURA DHT:
+   - Pino: GPIO 23 (DHTPIN)
+   - Tipo: DHT22 (AM2302)
+   - Intervalo: -40°C a +80°C
+   - Se ler NaN: sensor desconectado ou com falha
+
+4. CLIMA API:
+   - Baseado em OpenWeatherMap
+   - Requer WiFi conectado
+   - API key: 76b19c5ce07af87452662d52bd95ce4f
+   - Cidade: Curitiba (configurável via web)
+
+================================================================================
+FIM DO DOCUMENTO
+================================================================================
