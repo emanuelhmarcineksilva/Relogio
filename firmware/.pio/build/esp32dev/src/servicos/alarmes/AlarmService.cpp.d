@@ -281,4 +281,5 @@
  include/core/models/ButtonEvent.h include/core/models/SensorData.h \
  include/sistema/boot/BootState.h include/sistema/energia/SleepManager.h \
  include/sensores/rtc_ds3231/RtcService.h \
- include/sensores/dht22/DhtService.h
+ include/sensores/dht22/DhtService.h \
+ include/servicos/persistencia/ChangelogService.h
