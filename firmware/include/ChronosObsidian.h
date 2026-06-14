@@ -39,6 +39,7 @@
 #include "sensores/rtc_ds3231/RtcService.h"
 #include "sensores/dht22/DhtService.h"
 #include "servicos/alarmes/AlarmService.h"
+#include "servicos/persistencia/ChangelogService.h"
 
 // --- Objetos de hardware ---
 extern RTC_DS3231 rtc;
@@ -223,6 +224,7 @@ void handlePerf();
 void handleSalvar();
 void handleDownloadPerf();
 void handleUploadPerf();
+void handleChangelog();
 void iniciarServidorWeb();
 
 // --- Protótipos: boot / loop ---

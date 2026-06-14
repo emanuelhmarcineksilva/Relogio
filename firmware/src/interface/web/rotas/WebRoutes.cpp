@@ -175,7 +175,8 @@ void handleConfigGet() {
   json += "\"climaMs\":" + String(cfgClimaIntervaloMs) + ",";
   json += "\"backupMs\":" + String(cfgBackupIntervaloMs) + ",";
   json += "\"cidade\":\"" + String(cfgClimaPlaceId) + "\",";
-  json += "\"ssid\":\"" + String(wifiSSID) + "\"";
+  json += "\"ssid\":\"" + String(wifiSSID) + "\",";
+  json += "\"mac\":\"" + WiFi.macAddress() + "\"";
   json += "}";
   server.send(200, "application/json", json);
 }
@@ -388,6 +389,11 @@ void handleUploadPerf() {
   server.send(200, "text/plain", msg);
 }
 
+// GET /api/changelog — retorna o conteudo do SPIFFS
+void handleChangelog() {
+  server.send(200, "text/plain", ChangelogService::getChangelog());
+}
+
 // Inicializa todas as rotas
 void iniciarServidorWeb() {
   server.on("/",                handleRoot);
@@ -406,6 +412,7 @@ void iniciarServidorWeb() {
   server.on("/api/salvar",      handleSalvar);
   server.on("/api/download_perf", handleDownloadPerf);
   server.on("/api/upload_perf",   handleUploadPerf);
+  server.on("/api/changelog",     handleChangelog);
   server.begin();
   logPrintln("Servidor Web Iniciado!");
 }

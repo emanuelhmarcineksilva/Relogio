@@ -422,9 +422,8 @@ void loop() {
   if (cpuUsoEstimado > 100.0f) cpuUsoEstimado = 100.0f;
   stackLoopWords = uxTaskGetStackHighWaterMark(nullptr);
 
-  // Amostragem periodica de performance (1 ponto a cada 1 segundo)
-  // FASE 2.4: Ajustado para 1s para janela de ~5 minutos no grafico
-  // 288 samples × 1s = 288s = ~4.8 minutos
+  // Amostragem periódica de performance (1 ponto a cada 5 minutos - PERF_SAMPLE_MS)
+  // FASE 2.4: Amostragem de 5 min permite janela de 24 horas (288 amostras) no gráfico
   if (millis() - ultimaAmostraPerf >= PERF_SAMPLE_MS) {
     perfHist[0][perfHistPos] = tempoLoopUs;
     perfHist[1][perfHistPos] = tempoPegarClimaUs;

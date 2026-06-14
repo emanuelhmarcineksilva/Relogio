@@ -28,7 +28,7 @@ bool bootStep() {
       bootState = BOOT_SPIFFS; bootStepTime = agora; break;
     case BOOT_SPIFFS:
       if (agora - bootStepTime < BOOT_MSG_INTERVAL) break;
-      SPIFFS.begin(true); carregarPerfFlash(); carregarWifiConfig(); carregarConfigParams();
+      SPIFFS.begin(true); carregarPerfFlash(); carregarWifiConfig(); carregarConfigParams(); ChangelogService::init();
       if (oledOkBoot) oledMsg("[3/9] SPIFFS", "OK");
       bootState = BOOT_RTC; bootStepTime = agora; break;
     case BOOT_RTC:

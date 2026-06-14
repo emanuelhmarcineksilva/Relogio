@@ -1,6 +1,7 @@
 #include "ChronosObsidian.h"
 
-void TaskAquisicao(void *pvParameters) {
+
+void TaskAquisicao(void *pvParameters) { // essa task faz a leitura dos sensores e envia para a fila sensorQueue
   logPrintln("[TASK] TaskAquisicao iniciada (Core 0)");
   SensorData dados = {};
   
@@ -51,6 +52,6 @@ void TaskAquisicao(void *pvParameters) {
     }
     
     // Atraso mínimo para evitar timeout do watchdog (cedência de 50ms)
-    vTaskDelay(50 / portTICK_PERIOD_MS);
+    vTaskDelay(50 / portTICK_PERIOD_MS); // o v
   }
 }
