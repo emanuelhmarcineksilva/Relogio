@@ -48,23 +48,23 @@ Materiais de estudo e documentação didática.
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                    Documentação Principal                    │
-│                      (README.md)                             │
-│           Apresenta arquitetura, APIs e uso                │
+│                    Documentação Principal                   │
+│                          (README.md)                        │
+│                Apresenta arquitetura, APIs e uso            │
 └─────────────────────────────────────────────────────────────┘
                               │
                               ▼
 ┌─────────────────────────────────────────────────────────────┐
-│                     Código Fonte                           │
-│                  firmware/src/                               │
-│         • MainLoop.cpp, BootSequence.cpp                    │
-│         • Services, Tasks, Drivers                          │
+│                     Código Fonte                            │
+│                     firmware/src/                           │
+│              • MainLoop.cpp, BootSequence.cpp               │
+│              • Services, Tasks, Drivers                     │
 └─────────────────────────────────────────────────────────────┘
                               │
                               ▼
 ┌─────────────────────────────────────────────────────────────┐
-│                    Headers (include/)                        │
-│         • Declarações, modelos, interfaces                   │
+│                    Headers (include/)                       │
+│            • Declarações, modelos, interfaces               │
 └─────────────────────────────────────────────────────────────┘
 ```
 
