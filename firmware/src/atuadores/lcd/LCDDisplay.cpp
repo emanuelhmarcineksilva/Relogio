@@ -68,24 +68,23 @@ void atualizarLCD(DateTime agora, bool wifiConectado) {
   lcd.setCursor(0, 1);
   char linha2[17];
   
-  if (lcd_line2_show_ip) {
-    // Modo 1: Mostrar endereço WiFi (IP ou AP)
-    if (wifiConectado) {
-      String ip = WiFi.localIP().toString();
-      // Trunca para caber 16 caracteres: "IP: XXX.XXX.X.XX"
-      snprintf(linha2, sizeof(linha2), "w %s", ip.c_str());
-    } else {
-      // Sem WiFi: mostra endereço de fallback AP
-      snprintf(linha2, sizeof(linha2), "AP: 192.168.4.1");
-    }
+  // Prioriza a exibição do IP/AP se o WiFi não estiver conectado
+  if (!wifiConectado) {
+    // Sem WiFi: mostra endereço de fallback AP
+    snprintf(linha2, sizeof(linha2), "AP: 192.168.4.1");
+  } else if (lcd_line2_show_ip) {
+    // Modo 1: Mostrar endereço WiFi (IP) se conectado
+    String ip = WiFi.localIP().toString();
+    // Trunca para caber 16 caracteres: "w XXX.XXX.X.XX"
+    snprintf(linha2, sizeof(linha2), "w %s", ip.c_str());
   } else {
     // Modo 2: Mostrar temperatura min/max da API
-    // Formato: "Tmin:XX Tmax:XX" (14 caracteres, cabe em 16)
+    // Se climaAtual não for válido, exibe fallback
     if (climaAtual.valid) {
       snprintf(linha2, sizeof(linha2), "Tmin:%2.0f Tmax:%2.0f",
         climaAtual.temp_min, climaAtual.temp_max);
     } else {
-      snprintf(linha2, sizeof(linha2), "Tmin: -- Tmax: --");
+      snprintf(linha2, sizeof(linha2), "Tmin:-- Tmax:--");
     }
   }
   

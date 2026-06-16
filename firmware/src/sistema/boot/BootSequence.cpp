@@ -38,6 +38,18 @@ bool bootStep() {
       } else {
         if (oledOkBoot) oledMsg("[4/9] RTC", "ERRO");
       }
+      
+      // Inicia sensores e tarefas cedo para evitar bloqueio do boot
+      iniciarDHT();
+      inicializarAlarmes();
+      
+      // ===== FASE 2.1: INICIALIZAR TAREFAS RTOS (ANTECIPADO) =====
+      sensorQueue = xQueueCreate(1, sizeof(SensorData));
+      xTaskCreatePinnedToCore(TaskAquisicao, "TaskAquisicao", 4096, NULL, TASK_AQUISICAO_PRIORITY, &taskAquisicaoHandle, 0);
+      xTaskCreatePinnedToCore(TaskUI, "TaskUI", 4096, NULL, TASK_UI_PRIORITY, &taskUIHandle, 1);
+      xTaskCreatePinnedToCore(TaskAudio, "TaskAudio", 2048, NULL, TASK_AUDIO_PRIORITY, &taskAudioHandle, 1);
+      xTaskCreatePinnedToCore(TaskPersistencia, "TaskPersistencia", 3072, NULL, TASK_PERSISTENCIA_PRIORITY, &taskPersistenciaHandle, tskNO_AFFINITY);
+
       bootState = BOOT_I2S; bootStepTime = agora; break;
     case BOOT_I2S:
       if (agora - bootStepTime < BOOT_MSG_INTERVAL) break;
@@ -72,6 +84,9 @@ bool bootStep() {
        };
        esp_timer_create(&btn2_timer_args, &btn2_debounce_timer);
        
+       // NOVO: Inicializa timer de 50s para idle timeout
+       initIdleTimeout();
+       
        // Configura pinos GPIO com ISR na borda de descida (falling) HIGH→LOW
        pinMode(pinoButton1, INPUT_PULLUP);
        pinMode(pinoButton2, INPUT_PULLUP);
@@ -103,6 +118,9 @@ bool bootStep() {
           oledMsg("[7/9] WiFi OK", ipBuf);
         }
         logPrintf("[BOOT] WiFi conectado: %s\n", WiFi.localIP().toString().c_str());
+        // FASE 1.5: Atualiza clima uma vez no boot
+        logPrintln("[BOOT] Buscando clima inicial...");
+        pegarClima();
       } else {
         modoAP = true;
         WiFi.mode(WIFI_AP_STA);
@@ -134,100 +152,20 @@ bool bootStep() {
     case BOOT_SERVER:
       if (oledOkBoot) oledMsg("[9/9] Server", "Iniciando");
       iniciarServidorWeb(); bootState = BOOT_DHT; bootStepTime = agora; break;
-     case BOOT_DHT: {
-       iniciarDHT();
-       inicializarAlarmes();
-       ultimoBackupFlash = millis();
-       
-       // ===== FASE 2.1: INICIALIZAR TAREFAS RTOS =====
-       // Cria fila de sensores (1 elemento, 100 bytes por elemento)
-       sensorQueue = xQueueCreate(1, sizeof(SensorData));
-       if (sensorQueue == NULL) {
-         logError("[BOOT] Falha ao criar sensorQueue\n");
-       } else {
-         logPrintln("[BOOT] sensorQueue criada");
-       }
-       
-       // Cria TaskAquisicao no Core 0 (prioridade alta)
-       BaseType_t resultA = xTaskCreatePinnedToCore(
-         TaskAquisicao,                    // Função a executar
-         "TaskAquisicao",                  // Nome da tarefa (para depuração)
-         4096,                             // Tamanho da pilha (bytes) - ops de sensor + HTTP
-         NULL,                             // Parâmetros da tarefa
-         TASK_AQUISICAO_PRIORITY,          // Prioridade (alta)
-         &taskAquisicaoHandle,             // Handle da tarefa
-         0                                 // Core 0 (WiFi/rede)
-       );
-       
-       if (resultA == pdPASS) {
-         logPrintln("[BOOT] TaskAquisicao criada no Core 0");
-       } else {
-         logError("[BOOT] Falha ao criar TaskAquisicao\n");
-       }
-       
-       // Cria TaskUI no Core 1 (prioridade média-alta)
-       BaseType_t resultU = xTaskCreatePinnedToCore(
-         TaskUI,                           // Função a executar
-         "TaskUI",                         // Nome da tarefa
-         4096,                             // Tamanho da pilha (bytes) - ops de display
-         NULL,                             // Parâmetros da tarefa
-         TASK_UI_PRIORITY,                 // Prioridade (média-alta)
-         &taskUIHandle,                    // Handle da tarefa
-         1                                 // Core 1 (app/display)
-       );
-       
-       if (resultU == pdPASS) {
-         logPrintln("[BOOT] TaskUI criada no Core 1");
-       } else {
-         logError("[BOOT] Falha ao criar TaskUI\n");
-       }
-       
-       // Cria TaskAudio no Core 1 (prioridade média, para não bloquear UI)
-       BaseType_t resultAudio = xTaskCreatePinnedToCore(
-         TaskAudio,                        // Função a executar
-         "TaskAudio",                      // Nome da tarefa
-         2048,                             // Tamanho da pilha (bytes) - reprodução de som
-         NULL,                             // Parâmetros da tarefa
-         TASK_AUDIO_PRIORITY,              // Prioridade (média)
-         &taskAudioHandle,                 // Handle da tarefa
-         1                                 // Core 1 (app/áudio)
-       );
-       
-       if (resultAudio == pdPASS) {
-         logPrintln("[BOOT] TaskAudio criada no Core 1");
-       } else {
-         logError("[BOOT] Falha ao criar TaskAudio\n");
-       }
-       
-       // Cria TaskPersistencia (Core desindexado, baixa prioridade)
-       BaseType_t resultPers = xTaskCreatePinnedToCore(
-         TaskPersistencia,                 // Função a executar
-         "TaskPersistencia",               // Nome da tarefa
-         3072,                             // Tamanho da pilha (bytes) - operações de file I/O
-         NULL,                             // Parâmetros da tarefa
-         TASK_PERSISTENCIA_PRIORITY,       // Prioridade (BAIXA)
-         &taskPersistenciaHandle,          // Handle da tarefa
-         tskNO_AFFINITY                    // Sem afinidade de core (executa em qualquer um)
-       );
-       
-       if (resultPers == pdPASS) {
-         logPrintln("[BOOT] TaskPersistencia criada (BAIXA PRIORIDADE)");
-       } else {
-         logError("[BOOT] Falha ao criar TaskPersistencia\n");
-       }
-       
-       if (oledOkBoot) {
-         if (WiFi.status() == WL_CONNECTED) {
-           char urlBuf[40];
-           snprintf(urlBuf, sizeof(urlBuf), "http://%s", WiFi.localIP().toString().c_str());
-           oledMsg("[OK] Sistema", urlBuf);
-         } else {
-           oledMsg("[OK] Sistema", "AP: 192.168.4.1");
-         }
-       }
-       bootState = BOOT_COMPLETO;
-       break;
-     }
+      case BOOT_DHT: {
+        ultimoBackupFlash = millis();
+        if (oledOkBoot) {
+          if (WiFi.status() == WL_CONNECTED) {
+            char urlBuf[40];
+            snprintf(urlBuf, sizeof(urlBuf), "http://%s", WiFi.localIP().toString().c_str());
+            oledMsg("[OK] Sistema", urlBuf);
+          } else {
+            oledMsg("[OK] Sistema", "AP: 192.168.4.1");
+          }
+        }
+        bootState = BOOT_COMPLETO;
+        break;
+      }
     case BOOT_COMPLETO:
       logPrintln("BOOT COMPLETO");
       last_activity_ms = millis();

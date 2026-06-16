@@ -124,7 +124,7 @@ void handleSetAlarme() {
       if (server.hasArg("h"))   alarmes[id].hora    = server.arg("h").toInt();
       if (server.hasArg("m"))   alarmes[id].minuto  = server.arg("m").toInt();
       if (server.hasArg("mel")) alarmes[id].melodia = server.arg("mel").toInt() % TOTAL_MELODIAS;
-      logPrintf("[WEB] Alarme %d: %02d:%02d mel=%d\n", id+1, alarmes[id].hora, alarmes[id].minuto, alarmes[id].melodia);
+      salvarAlarmes();
       last_activity_ms = millis();
       server.send(200, "text/plain", "OK");
     } else {
@@ -141,7 +141,7 @@ void handleToggleAlarme() {
     int id = server.arg("id").toInt();
     if (id >= 0 && id < NUM_ALARMES) {
       alarmes[id].ativo = !alarmes[id].ativo;
-      logPrintf("[WEB] Alarme %d: %s\n", id+1, alarmes[id].ativo ? "ON" : "OFF");
+      salvarAlarmes();
       last_activity_ms = millis();
       server.send(200, "text/plain", "OK");
     } else {

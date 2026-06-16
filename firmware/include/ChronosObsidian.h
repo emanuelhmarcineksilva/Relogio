@@ -1,5 +1,5 @@
 #pragma once
-// Chronos Obsidian — header central (derivado de relogio7.ino v4.0.0)
+// Chronos Obsidian — header central (derivado de relogio7.ino v4.1.0)
 
 #include <Arduino.h>
 #include <WiFi.h>
@@ -96,6 +96,8 @@ struct RtcPersistData {
 extern RtcPersistData rtc_data;
 extern unsigned long last_activity_ms;
 extern bool sleep_mode_active;
+extern bool idle_state;  // false = ativo, true = ocioso
+extern esp_timer_handle_t idle_timeout_timer;
 
 // --- Performance ---
 extern uint32_t tempoLoopUs;
@@ -200,6 +202,7 @@ void desenharSol();
 void desenharTermometro();
 void desenharNeve();
 void desenharNuvemDeChuva();
+void desenharSino();
 int getTipoClima(float temp, int weather_code);
 
 // --- Protótipos: serviços ---

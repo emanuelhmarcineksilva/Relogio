@@ -19,12 +19,7 @@ void loop() {
   server.handleClient();
 
   // ==================================================================
-  // 14.1 PLAYER DE MELODIA (não-bloqueante)
-  // ==================================================================
-  tocarMelodiaStep();
-
-  // ==================================================================
-  // 14.2 BOTÕES (FASE 2.2: ISR + FILA DE EVENTOS)
+  // 14.1 BOTÕES (FASE 2.2: ISR + FILA DE EVENTOS)
   // ==================================================================
   // Processamento de eventos de botão não bloqueante via ISR + fila
   // Em vez de varrer digitalRead() todo loop, a ISR enfileira eventos
@@ -56,6 +51,10 @@ void loop() {
 
   if (clicou1 || clicou2) {
     last_activity_ms = agoraMs;
+    // Se acordou via botão, reseta contador e evita re-entrar em sleep imediatamente
+    if (sleep_mode_active == false && (agoraMs - last_activity_ms) < 100) {
+      logInfo("[BTN] Botao detectado apos despertar do sleep\n");
+    }
   }
 
   tempoLeituraBotoesUs = (uint32_t)(esp_timer_get_time() - tBotoes0);
@@ -73,9 +72,8 @@ void loop() {
   bool wifiConectado = (WiFi.status() == WL_CONNECTED);
   wifiRSSI = wifiConectado ? WiFi.RSSI() : 0;
 
-  // Busca clima na primeira conexão
+  // Busca clima na primeira conexão (Removido daqui, agora na TaskAquisicao)
   if (wifiConectado && !climaIniciado) {
-    pegarClima();
     climaIniciado = true;
     precisaRedesenhar = true;
   }
@@ -101,10 +99,10 @@ void loop() {
   // 14.5 MÁQUINA DE ESTADOS (menus + botões)
   // ==================================================================
   if (estadoAtual == "RELOGIO") {
-    // Clima usando o intervalo configurado na interface web
+    // Clima (Atualização agora é feita pela TaskAquisicao, apenas sinaliza redesenho se necessário)
     static unsigned long tempoClima = 0;
     if (millis() - tempoClima > cfgClimaIntervaloMs && wifiConectado) {
-      pegarClima();
+      // pegarClima(); // REMOVIDO: Evita travamento do loop principal
       tempoClima = millis();
       precisaRedesenhar = true;
     }
@@ -132,54 +130,38 @@ void loop() {
       }
     }
 
-    // Render Relógio
+    // Renderização do relógio e ícones
     uint64_t tD0 = esp_timer_get_time();
     if (precisaRedesenhar && estadoAtual == "RELOGIO") {
       displayTela.clearDisplay();
 
-      // ================================================================
-      // FASE 1.3: REDESIGN DO OLED - EXIBIÇÃO APENAS DO ÍCONE E HORA
-      // ================================================================
-      // Hora pequena no topo
-      displayTela.setTextSize(1);
-      displayTela.setCursor(0, 0);
-      char horaOled[6];
-      snprintf(horaOled, sizeof(horaOled), "%02d:%02d", hora, minuto);
-      displayTela.print(horaOled);
-
-      // Obtém o tipo de clima atual (0-4)
-      int tipoClima = getTipoClima(temperatura, climaAtual.weather_code);
-      
-      switch(tipoClima) {
-        case 0:
-          desenharNeve();
-          break;
-        case 1:
-          desenharNuvemDeChuva();
-          break;
-        case 2:
-          desenharNuvem();
-          break;
-        case 3:
-          desenharSol();
-          break;
-        case 4:
-          desenharTermometro();
-          break;
-        default:
-          desenharNuvem();
-          break;
-      }
-
-      // Indicador de alarme (canto inferior)
       if (alarmeDisparo) {
-        displayTela.setCursor(15, 55);
-        displayTela.setTextSize(1);
-        displayTela.print(">>> ALARME ");
-        displayTela.print(alarmeDisparoIdx + 1);
-        displayTela.print(" <<<");
+        desenharSino();
+      } else {
+        // Obtém o tipo de clima atual (0-4)
+        int tipoClima = getTipoClima(temperatura, climaAtual.weather_code);
+        
+        switch(tipoClima) {
+          case 0:
+            desenharNeve();
+            break;
+          case 1:
+            desenharNuvemDeChuva();
+            break;
+          case 2:
+            desenharNuvem();
+            break;
+          case 3:
+            desenharSol();
+            break;
+          case 4:
+            desenharTermometro();
+            break;
+          default:
+            desenharNuvem();
+            break;
+        }
       }
-
       displayTela.display();
     }
     tempoAtualizarDisplayUs = (uint32_t)(esp_timer_get_time() - tD0);
@@ -249,6 +231,7 @@ void loop() {
       if (subMenuIndex == 0) {
         // Toggle ativo
         alarmes[alarmeListaIdx].ativo = !alarmes[alarmeListaIdx].ativo;
+        salvarAlarmes();
       } else if (subMenuIndex == 1) {
         // Editar hora
         estadoAtual = "EDITAR_ALARME_H";
@@ -303,6 +286,7 @@ void loop() {
     }
     if (clicou2) {
       alarmes[alarmeListaIdx].melodia = melodiaEscolha;
+      salvarAlarmes();
       estadoAtual = "DETALHE_ALARME";
     }
 
@@ -347,6 +331,7 @@ void loop() {
     if (clicou2) {
       alarmes[alarmeListaIdx].hora = tempHora;
       alarmes[alarmeListaIdx].minuto = tempMinuto;
+      salvarAlarmes();
       logPrintf("[ALARME] %d salvo: %02d:%02d\n", alarmeListaIdx+1, tempHora, tempMinuto);
       estadoAtual = "RELOGIO";
     }

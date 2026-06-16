@@ -15,6 +15,16 @@ void inicializarAlarmes();
 void processarAlarmes(int hora, int minuto);
 
 /**
+ * @brief Salva as configurações de todos os alarmes no SPIFFS.
+ */
+void salvarAlarmes();
+
+/**
+ * @brief Carrega as configurações de todos os alarmes do SPIFFS.
+ */
+void carregarAlarmes();
+
+/**
  * @brief Silencia o alarme que está tocando no momento.
  */
 void silenciarAlarmeAtual();

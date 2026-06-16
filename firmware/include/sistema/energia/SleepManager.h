@@ -43,6 +43,29 @@ extern "C" {
  */
 void enterLightSleep(uint32_t duration_ms);
 
+/**
+ * @brief Inicializa o timer de 50s para controle de idle/inatividade
+ * 
+ * Deve ser chamado uma vez no boot (em BootSequence BOOT_BOTOES).
+ * Cria o timer esp_timer para contar 50s sem atividade de botão.
+ * 
+ * @note Chamado automaticamente em bootStep()
+ */
+void initIdleTimeout(void);
+
+/**
+ * @brief Reseta o timer de 50s e marca sistema como ativo
+ * 
+ * Chamado sempre que um botão é clicado (em btn_debounce_callback).
+ * Garante que o sistema não entre em Light Sleep enquanto há atividade.
+ * 
+ * - Define idle_state = false (sistema ativo)
+ * - Para e reinicia o timer de 50s
+ * 
+ * @note Seguro chamar de callbacks ISR/timer (usa apenas esp_timer_*)
+ */
+void resetIdleTimeout(void);
+
 #ifdef __cplusplus
 }
 #endif

@@ -38,7 +38,7 @@ void tocarMelodiaStep() {
 
   // Quando nenhum alarme esta tocando, garantimos silencio no I2S.
   // Tambem resetamos os indices para a proxima execucao comecar do inicio.
-  if (!alarmeDisparo) {
+  if (!alarmeDisparo || melodiaAtualIdx < 0 || melodiaAtualIdx >= TOTAL_MELODIAS) {
     if (notaAtualIdx != 0 || faseOnda != 0) {
       i2s_zero_dma_buffer(I2S_PORT);
       notaAtualIdx = 0;
@@ -48,7 +48,6 @@ void tocarMelodiaStep() {
   }
 
   // Le a nota atual da melodia armazenada na flash (PROGMEM).
-  // Isso economiza RAM, pois as melodias sao fixas.
   const Nota* mel = MELODIAS[melodiaAtualIdx];
   Nota nota;
   memcpy_P(&nota, &mel[notaAtualIdx], sizeof(Nota));
@@ -72,24 +71,23 @@ void tocarMelodiaStep() {
   }
 
   // Gera 128 amostras PCM (16 bits) para este passo do audio.
+  // Em 22050Hz, isso representa ~5.8ms de áudio.
   int16_t samples[128];
 
   if (nota.freq > 0) {
-    // Formula da senoide: sample = sin(fase) * volume.
-    // incremento define quanto a fase avanca por amostra para atingir a frequencia desejada.
     float incremento = 2.0f * PI * nota.freq / (float)SAMPLE_RATE;
     for (int i = 0; i < 128; i++) {
-      samples[i] = (int16_t)(sinf(faseOnda) * 8000); // Volume moderado
+      samples[i] = (int16_t)(sinf(faseOnda) * 8000); 
       faseOnda += incremento;
       if (faseOnda >= 2.0f * PI) faseOnda -= 2.0f * PI;
     }
   } else {
-    // Nota com frequencia 0 representa pausa, entao preenchemos com zero.
     memset(samples, 0, sizeof(samples));
   }
 
-  // Envia o bloco para o periférico I2S.
-  // Timeout curto evita travar o restante do firmware.
+  // Envia o bloco para o periférico I2S com timeout longo (100ms).
+  // Isso permite que a função bloqueie exatamente o tempo necessário para o hardware,
+  // mantendo a reprodução em velocidade real (100%).
   size_t written;
-  i2s_write(I2S_PORT, samples, sizeof(samples), &written, 5 / portTICK_PERIOD_MS);
+  i2s_write(I2S_PORT, samples, sizeof(samples), &written, 100 / portTICK_PERIOD_MS);
 }

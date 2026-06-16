@@ -85,6 +85,8 @@ volatile uint32_t btn2_bounce_time = 0;
 RTC_DATA_ATTR RtcPersistData rtc_data = {0, 0.0, 0.0, 0, 1};
 unsigned long last_activity_ms = 0;
 bool sleep_mode_active = false;
+bool idle_state = false;  // false = ativo, true = ocioso (pronto para sleep)
+esp_timer_handle_t idle_timeout_timer = NULL;  // Timer de 50s para marcar como ocioso
 
 // --- Métricas tempo real ---
 uint32_t tempoLoopUs            = 0;

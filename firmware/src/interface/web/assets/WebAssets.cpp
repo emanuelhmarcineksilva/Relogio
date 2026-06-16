@@ -31,7 +31,7 @@ button:hover{background:#2563eb}.on{background:#16a34a}.on:hover{background:#158
 <div id="pg0" class="page active">
 <div class="clock" id="clk">--:--:--</div>
 <div class="clock-sub"><span id="tmp">--</span> | <span id="upt">--</span></div>
-<h2>Hora do Sistema</h2><div class="card"><div class="row"><input type="number" id="sh" min="0" max="23" value="0"><span class="sep">:</span><input type="number" id="sm" min="0" max="59" value="0"><button onclick="setH()">Salvar Hora</button></div></div>
+<h2>Hora do Sistema</h2><div class="card" id="cardSys"><div class="row"><input type="number" id="sh" min="0" max="23" value="0"><span class="sep">:</span><input type="number" id="sm" min="0" max="59" value="0"><button onclick="setH()">Salvar Hora</button></div></div>
 <h2>Alarmes</h2><div id="als"></div>
 <h2>Clima</h2><div class="card"><div class="row"><span id="tmpLocal" class="lbl">Temperatura Local (DHT): --</span><span id="humLocal" class="lbl">Umidade Local (DHT): --</span><span id="tmpApi" class="lbl">Previsao do Tempo (API): --</span><button onclick="doClima()">Atualizar Clima</button></div></div>
 </div>
@@ -50,7 +50,7 @@ button:hover{background:#2563eb}.on{background:#16a34a}.on:hover{background:#158
 <div id="pg3" class="page">
 <h2>Sobre e Configuracoes</h2>
 <div class="card"><b>Sobre o Projeto Chronos Obsidian</b><br>Universidade: Pontifícia Universidade Católica do Paraná (PUCPR).<br>Integrantes: EMANUEL HENRIQUE MARCINEK SILVA, GABRIEL MOLETA ROSSI, JULIO MIGUEL CZAPLINSKI KUCHUMINSKI, MURILO BIZZ, MURILO PRIZIBELA.<br>GitHub: <a href="https://github.com/emanuelhmarcineksilva/Relogio" style="color:#4ade80">Link Repositório</a><br>MAC Address: <span id="sysMac" style="color:#38bdf8">--</span><br>Uptime: <span id="sysUpt" style="color:#38bdf8">--</span></div>
-<div class="card"><b>Guia de Changelog (V4.1.0)</b><br>• Implementação de Light Sleep com despertar por GPIO (botões) e temporizador.<br>• Persistência de estado via RTC_DATA_ATTR para métricas críticas.<br>• Sistema de Watchdog integrado para prevenção de travamentos.<br>• Changelog persistente gerenciado via SPIFFS e endpoint REST.<br>• Otimização de interrupções de hardware com debounce via timer de alta precisão.</div>
+<div class="card"><b>Guia de Changelog (V4.1.0)</b><br>• <b>[ENERGIA]</b> Sistema de Idle Timeout (50s) com controle de Light Sleep - timer resetável por cliques, previne sleep com atividade.<br>• <b>[RTOS]</b> Arquitetura Dual-Core com 4 tarefas independentes (Sensores, UI, Audio, Persistência).<br>• <b>[OBSERVABILIDADE]</b> Dashboard Web, Log Ring Buffer (8KB), Histórico de Performance com gráficos em tempo real.<br>• <b>[SENSORES]</b> RTC DS3231, DHT22, WiFi + Meteosource API para previsão de tempo.<br>• <b>[AUDIO]</b> Síntese I2S com 5 melodias para alarmes com reprodução em alta fidelidade.<br>• <b>[PERSISTENCIA]</b> Backup CRC32 de configurações, logs e métricas em SPIFFS com restauração automática.</div>
 <div class="card"><b>Configuracoes</b><br>Use estes campos para ajustar leitura dos sensores, intervalo do clima e backup da flash sem recompilar o firmware.<div class="row"><span class="lbl">Leitura DHT (ms)</span><input id="cfgDht" type="number" min="2000"></div><div class="row"><span class="lbl">Clima API (ms)</span><input id="cfgClima" type="number" min="60000"></div><div class="row"><span class="lbl">Backup Flash (ms)</span><input id="cfgBackup" type="number" min="300000"></div><div class="row"><span class="lbl">Cidade (Meteosource)</span><input id="cfgCidade" type="text"></div><button onclick="salvarCfg()">Salvar Configuracoes</button></div>
 <div class="card"><b>Troca de WiFi</b><div class="row"><span class="lbl">SSID</span><input id="wssid" type="text"></div><div class="row"><span class="lbl">Senha</span><input id="wpass" type="password"></div><button onclick="salvarWifi()">Salvar WiFi</button><div id="wifiResp"></div></div>
 </div>
@@ -67,71 +67,119 @@ function drawChart(id,data,color,name,curUs){
     ctx.clearRect(0,0,w,h);ctx.fillStyle='#0d0d16';ctx.fillRect(mgL,mgT,cW,cH);
     ctx.strokeStyle='#1e2038';ctx.lineWidth=1;
     for(let i=0;i<4;i++){const y=mgT+cH*i/3;ctx.beginPath();ctx.moveTo(mgL,y);ctx.lineTo(mgL+cW,y);ctx.stroke();}
-    
-    // Convert us to ms for readability if it's a performance metric
     const toMs = v => (v / 1000).toFixed(2);
-    const label = "ms";
     const cur = toMs(curUs);
-
     if(!data||data.length<2){
-        ctx.fillStyle=color;ctx.font='bold 11px monospace';ctx.textAlign='left';ctx.fillText(name+': '+cur+' '+label,mgL,mgT-8);
+        ctx.fillStyle=color;ctx.font='bold 11px monospace';ctx.textAlign='left';ctx.fillText(name+': '+cur+' ms',mgL,mgT-8);
         ctx.fillStyle='#64748b';ctx.font='10px monospace';ctx.textAlign='center';ctx.fillText('Aguardando amostras...',mgL+cW/2,mgT+cH/2);return;
     }
-    
-    const realData=data.map(v=>v/1000); // converting full set to ms
-    const mx=Math.max(...realData,parseFloat(cur),0.1),mn=0;
+    const realData=data.map(v=>v/1000);
+    const mx=Math.max(...realData,parseFloat(cur),0.1);
     const padding=mx*0.1,yMax=mx+padding,yMin=0,rng=yMax-yMin||1;
     const px=i=>mgL+cW*i/(data.length-1),py=v=>mgT+cH-(v-yMin)/rng*cH;
-    
     const grad=ctx.createLinearGradient(0,mgT,0,mgT+cH);grad.addColorStop(0,color+'44');grad.addColorStop(1,color+'05');
     ctx.fillStyle=grad;ctx.beginPath();ctx.moveTo(px(0),mgT+cH);realData.forEach((v,i)=>ctx.lineTo(px(i),py(v)));ctx.lineTo(px(data.length-1),mgT+cH);ctx.closePath();ctx.fill();
-    
     ctx.strokeStyle=color;ctx.lineWidth=2;ctx.shadowColor=color;ctx.shadowBlur=8;ctx.beginPath();realData.forEach((v,i)=>i?ctx.lineTo(px(i),py(v)):ctx.moveTo(px(i),py(v)));ctx.stroke();ctx.shadowBlur=0;
-    
     ctx.strokeStyle='#334155';ctx.lineWidth=1.5;ctx.beginPath();ctx.moveTo(mgL,mgT);ctx.lineTo(mgL,mgT+cH);ctx.lineTo(mgL+cW,mgT+cH);ctx.stroke();
-    
-    ctx.fillStyle=color;ctx.font='bold 12px monospace';ctx.textAlign='left';ctx.fillText(`${name}: ${cur}${label}`,mgL,mgT-8);
-    
+    ctx.fillStyle=color;ctx.font='bold 12px monospace';ctx.textAlign='left';ctx.fillText(`${name}: ${cur}ms`,mgL,mgT-8);
     ctx.fillStyle='#94a3b8';ctx.font='9px monospace';ctx.textAlign='right';
-    for(let i=0;i<=3;i++){
-        const yFrac=i/3,yVal= (yMax - (rng*yFrac)).toFixed(1);
-        const yPx=mgT+cH*yFrac;ctx.fillText(yVal,mgL-6,yPx+3);
-    }
-    
-    ctx.textAlign='center';ctx.font='8px monospace';
-    // X-axis: 0 on the right, -Total on the left
-    const total=data.length;
-    for(let i=0;i<=4;i++){
-        const sampleIdx = Math.round((total-1) * i/4);
-        const labelIdx = -(total - 1 - sampleIdx);
-        const xPx = px(sampleIdx);
-        ctx.fillText(labelIdx==0?'Agora':labelIdx, xPx, mgT+cH+15);
-    }
-    ctx.fillText('Amostras', mgL+cW/2, mgT+cH+25);
+    for(let i=0;i<=3;i++){const yVal=(yMax-rng*i/3).toFixed(1);ctx.fillText(yVal,mgL-6,mgT+cH*i/3+3);}
 }
-async function gPerf(){try{const r=await fetch('/api/perf');const d=await r.json();const pos=d.pos,full=d.full,total=full?288:pos,pct=Math.round(total/288*100);
+async function gPerf(){try{const r=await fetch('/api/perf');const d=await r.json();const pos=d.pos,full=d.full,total=full?288:pos;
 const el=document.getElementById('perfStatus');if(el)el.innerHTML=`<span style="color:#4ade80">${total}</span>/288 pontos &bull; Mem: <span style="color:#38bdf8">${(d.heap/1024).toFixed(1)}KB</span> &bull; CPU: <span style="color:#f97316">${d.cpu?d.cpu.toFixed(1):0}%</span>`;
 requestAnimationFrame(()=>{for(let f=0;f<7;f++){const raw=d.hist[f];let ord=full?[...raw.slice(pos),...raw.slice(0,pos)]:raw.slice(0,pos);
 drawChart('pc'+f,ord,PC[f],PN[f],d.atual[f]);}});}catch(e){console.error('[gPerf]',e);}}
 async function forcaSalvar(){await fetch('/api/salvar');}
 async function baixarBackup(){const r=await fetch('/api/download_perf');const txt=await r.text();const blob=new Blob([txt],{type:'text/plain'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='backup_perf.txt';a.click();URL.revokeObjectURL(url);}
 async function restaurarBackup(input){if(!input.files.length)return;const txt=await input.files[0].text();const r=await fetch('/api/upload_perf',{method:'POST',headers:{'Content-Type':'text/plain'},body:txt});alert(await r.text());input.value='';}
-function rA(d){let h='';for(let i=0;i<3;i++){const a=d.alarmes[i];h+='<div class="card"><div class="row"><span class="lbl">Alm '+(i+1)+'</span><input type="number" id="ah'+i+'" min="0" max="23" value="'+a.h+'"><span class="sep">:</span><input type="number" id="am'+i+'" min="0" max="59" value="'+a.m+'"><select id="ml'+i+'">';for(let j=0;j<M.length;j++)h+='<option value="'+j+'"'+(j==a.mel?' selected':'')+'>'+M[j]+'</option>';h+='</select><button class="'+(a.a?'on':'off')+'" onclick="tg('+i+')">'+(a.a?'ON':'OFF')+'</button><button onclick="sv('+i+')">Salvar</button></div></div>';}document.getElementById('als').innerHTML=h;document.getElementById('tmp').textContent='Temperatura Local (DHT): '+(d.dhtTemp>-100?d.dhtTemp.toFixed(1)+'°C':'--');document.getElementById('tmpLocal').textContent='Temperatura Local (DHT): '+(d.dhtTemp>-100?d.dhtTemp.toFixed(1)+'°C':'--');document.getElementById('humLocal').textContent='Umidade Local (DHT): '+(d.dhtHum>-100?d.dhtHum.toFixed(1)+'%':'--');document.getElementById('tmpApi').textContent='Previsao do Tempo (API): '+d.temp.toFixed(1)+'°C';}
+
+function rA(d){
+    const div=document.getElementById('als');
+    if(!div.innerHTML || div.innerHTML.indexOf('ah0') === -1) {
+        let h='';
+        for(let i=0;i<3;i++){
+            const a=d.alarmes[i];
+            h+='<div class="card"><div class="row">';
+            h+='<span class="lbl">Alm '+(i+1)+'</span>';
+            h+='<input type="number" id="ah'+i+'" min="0" max="23" value="'+a.h+'" oninput="this.dataset.dirty=1">';
+            h+='<span class="sep">:</span>';
+            h+='<input type="number" id="am'+i+'" min="0" max="59" value="'+a.m+'" oninput="this.dataset.dirty=1">';
+            h+='<select id="ml'+i+'" oninput="this.dataset.dirty=1">';
+            for(let j=0;j<M.length;j++) h+='<option value="'+j+'"'+(j==a.mel?' selected':'')+'>'+M[j]+'</option>';
+            h+='</select>';
+            h+='<button id="tg'+i+'" onclick="tg('+i+')">--</button>';
+            h+='<button onclick="sv('+i+')">Salvar</button>';
+            h+='</div></div>';
+        }
+        div.innerHTML=h;
+    }
+    
+    // Verifica se ALGUÉM na seção de alarmes está sendo editado ou tem o foco
+    const isEditing = div.contains(document.activeElement);
+
+    for(let i=0;i<3;i++){
+        const a=d.alarmes[i];
+        const hI=document.getElementById('ah'+i), mI=document.getElementById('am'+i), sL=document.getElementById('ml'+i), bT=document.getElementById('tg'+i);
+        
+        // SÓ atualiza os campos se o usuário não estiver mexendo na seção E o campo não estiver "sujo"
+        if(!isEditing && hI.dataset.dirty !== "1") hI.value = a.h;
+        if(!isEditing && mI.dataset.dirty !== "1") mI.value = a.m;
+        if(!isEditing && sL.dataset.dirty !== "1") sL.value = a.mel;
+        
+        bT.className = a.a ? 'on' : 'off';
+        bT.textContent = a.a ? 'ON' : 'OFF';
+    }
+    document.getElementById('tmp').textContent='DHT: '+(d.dhtTemp>-100?d.dhtTemp.toFixed(1)+'°C':'--');
+    document.getElementById('tmpLocal').textContent='Temp Local: '+(d.dhtTemp>-100?d.dhtTemp.toFixed(1)+'°C':'--');
+    document.getElementById('humLocal').textContent='Hum Local: '+(d.dhtHum>-100?d.dhtHum.toFixed(1)+'%':'--');
+    document.getElementById('tmpApi').textContent='Previsao API: '+d.temp.toFixed(1)+'°C';
+}
+
 async function gS(){try{const r=await fetch('/api/log');document.getElementById('tp0').textContent=await r.text()}catch(e){}}
 async function gSer(){try{const r=await fetch('/api/serial');const el=document.getElementById('tp1');el.textContent=await r.text();el.scrollTop=el.scrollHeight}catch(e){}}
 async function gF(){try{const r=await fetch('/api/flash');document.getElementById('tp2').textContent=await r.text()}catch(e){}}
-async function gCg(){try{const r=await fetch('/api/changelog');const txt=await r.text();document.getElementById('tpChangelog').textContent=txt;}catch(e){console.error('[gCg]',e);}}
-let editandoAlarmes=false;
-document.addEventListener('focusin',e=>{if(e.target.closest&&e.target.closest('#als'))editandoAlarmes=true;});
-document.addEventListener('focusout',e=>{if(e.target.closest&&e.target.closest('#als')){setTimeout(()=>{if(!document.querySelector('#als input:focus,#als select:focus'))editandoAlarmes=false;},200);}});
-async function gA(){try{const r=await fetch('/api/alarmes');const d=await r.json();if(!editandoAlarmes)rA(d);document.getElementById('clk').textContent=d.hora;document.getElementById('upt').textContent='Up: '+d.uptime+'s';document.getElementById('tmp').textContent='Temperatura Local (DHT): '+(d.dhtTemp>-100?d.dhtTemp.toFixed(1)+'°C':'--');document.getElementById('tmpLocal').textContent='Temperatura Local (DHT): '+(d.dhtTemp>-100?d.dhtTemp.toFixed(1)+'°C':'--');document.getElementById('humLocal').textContent='Umidade Local (DHT): '+(d.dhtHum>-100?d.dhtHum.toFixed(1)+'%':'--');document.getElementById('tmpApi').textContent='Previsao do Tempo (API): '+d.temp.toFixed(1)+'°C';}catch(e){}}
-async function gCfg(){try{const r=await fetch('/api/config');const d=await r.json();document.getElementById('cfgDht').value=d.dhtMs;document.getElementById('cfgClima').value=d.climaMs;document.getElementById('cfgBackup').value=d.backupMs;document.getElementById('cfgCidade').value=d.cidade||'curitiba';document.getElementById('wssid').value=d.ssid||'';document.getElementById('sysMac').textContent=d.mac||'--';const u=document.getElementById('upt').textContent;document.getElementById('sysUpt').textContent=u.replace('Up: ','');}catch(e){}}async function salvarCfg(){const d=document.getElementById('cfgDht').value,c=document.getElementById('cfgClima').value,b=document.getElementById('cfgBackup').value,cid=encodeURIComponent(document.getElementById('cfgCidade').value);await fetch('/api/config/set?dht='+d+'&clima='+c+'&backup='+b+'&cidade='+cid);}
+async function gCg(){try{const r=await fetch('/api/changelog');document.getElementById('tpChangelog').textContent=await r.text();}catch(e){}}
 
-async function salvarWifi(){const s=encodeURIComponent(document.getElementById('wssid').value),p=encodeURIComponent(document.getElementById('wpass').value);const r=await fetch('/api/wifi/set?ssid='+s+'&pass='+p);document.getElementById('wifiResp').textContent=await r.text();}
-async function setH(){const h=document.getElementById('sh').value,m=document.getElementById('sm').value;await fetch('/api/hora?h='+h+'&m='+m);}
-async function sv(i){const h=document.getElementById('ah'+i).value,m=document.getElementById('am'+i).value,ml=document.getElementById('ml'+i).value;await fetch('/api/alarme?id='+i+'&h='+h+'&m='+m+'&mel='+ml);editandoAlarmes=false;gA();}
-async function tg(i){await fetch('/api/alarme/toggle?id='+i);gA();}
+let sk=null;
+function uC(){if(!sk)return;sk.setSeconds(sk.getSeconds()+1);document.getElementById('clk').textContent=sk.toTimeString().split(' ')[0];}
+async function gA(){
+    try{
+        const r=await fetch('/api/alarmes');const d=await r.json();
+        rA(d);
+        const p=d.hora.split(':');
+        sk=new Date();sk.setHours(p[0]);sk.setMinutes(p[1]);sk.setSeconds(p[2]);
+        document.getElementById('clk').textContent=d.hora;
+        document.getElementById('upt').textContent='Up: '+d.uptime+'s';
+        
+        const cardSys=document.getElementById('cardSys');
+        const isEditingSys = cardSys.contains(document.activeElement);
+        const sh=document.getElementById('sh'), sm=document.getElementById('sm');
+        
+        if(!isEditingSys && (sh.value == "0" && sm.value == "0")){
+            sh.value=parseInt(p[0]); sm.value=parseInt(p[1]);
+        }
+    }catch(e){}
+}
+
+async function gCfg(){try{const r=await fetch('/api/config');const d=await r.json();document.getElementById('cfgDht').value=d.dhtMs;document.getElementById('cfgClima').value=d.climaMs;document.getElementById('cfgBackup').value=d.backupMs;document.getElementById('cfgCidade').value=d.cidade||'curitiba';document.getElementById('wssid').value=d.ssid||'';document.getElementById('sysMac').textContent=d.mac||'--';const u=document.getElementById('upt').textContent;document.getElementById('sysUpt').textContent=u.replace('Up: ','');}catch(e){}}
+async function salvarCfg(){const d=document.getElementById('cfgDht').value,c=document.getElementById('cfgClima').value,b=document.getElementById('cfgBackup').value,cid=encodeURIComponent(document.getElementById('cfgCidade').value);try{const r=await fetch('/api/config/set?dht='+d+'&clima='+c+'&backup='+b+'&cidade='+cid);if(r.ok){alert('✓ OK');await gCfg();}}catch(e){alert('✗ Erro');}}
+async function salvarWifi(){const s=encodeURIComponent(document.getElementById('wssid').value),p=encodeURIComponent(document.getElementById('wpass').value);try{const r=await fetch('/api/wifi/set?ssid='+s+'&pass='+p);if(r.ok)document.getElementById('wifiResp').textContent='✓ '+await r.text();}catch(e){}}
+async function setH(){const h=document.getElementById('sh').value,m=document.getElementById('sm').value;await fetch('/api/hora?h='+h+'&m='+m);await gA();}
+async function sv(i){
+    const hI=document.getElementById('ah'+i), mI=document.getElementById('am'+i), sL=document.getElementById('ml'+i);
+    const h=hI.value, m=mI.value, ml=sL.value;
+    await fetch('/api/alarme?id='+i+'&h='+h+'&m='+m+'&mel='+ml);
+    hI.dataset.dirty="0"; mI.dataset.dirty="0"; sL.dataset.dirty="0";
+    await gA();
+}
+async function tg(i){await fetch('/api/alarme/toggle?id='+i);await gA();}
 async function doClima(){await fetch('/api/clima');gA();}
-gA();gS();gSer();setInterval(gA,2000);setInterval(gS,3000);setInterval(gSer,2000);setInterval(()=>{if(document.getElementById('tp3').classList.contains('active'))gPerf();},5000);
+
+gA();gS();gSer();
+setInterval(uC,1000);
+setInterval(gA,10000); 
+setInterval(gS,10000);
+setInterval(gSer,10000);
+setInterval(()=>{if(document.getElementById('tp3').classList.contains('active'))gPerf();},30000);
 </script></body></html>
 )rawliteral";

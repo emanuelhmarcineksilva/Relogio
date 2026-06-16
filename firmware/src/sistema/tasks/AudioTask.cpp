@@ -17,19 +17,17 @@ void TaskAudio(void *pvParameters) {
     
     uint64_t tAudio0 = esp_timer_get_time();
     
-    // Verifica se há alarme disparado
-    if (alarmeDisparo && melodiaAtualIdx >= 0 && melodiaAtualIdx < TOTAL_MELODIAS) {
-      // Chama a função de reprodução passo-a-passo
-      tocarMelodiaStep();
-    }
+    // Chama a função de reprodução passo-a-passo sempre
+    // Ela internaamente gerencia se deve tocar notas ou limpar o buffer
+    tocarMelodiaStep();
     
     // [OPCIONAL] Log periódico de estado de áudio (comentado para não sobrecarregar logs)
     // if (alarmeDisparo) {
     //   logInfo("[TASK-AUDIO] Melodia %d: Nota %d\n", melodiaAtualIdx, notaAtualIdx);
     // }
     
-    // Atraso mínimo para evitar timeout do watchdog (cedência de 50ms)
-    vTaskDelay(50 / portTICK_PERIOD_MS);
+    // Atraso mínimo permite que o i2s_write bloqueie o tempo necessário
+    vTaskDelay(1 / portTICK_PERIOD_MS);
   }
 }
 
